@@ -29,6 +29,12 @@ program
     const MIWI_PATH = `${PROJECT_ROOT_PATH}/miwi`;
     fs.mkdirSync(MIWI_PATH);
 
+    // Copy tsconfig.json
+    fs.writeFileSync(
+      path.resolve(PROJECT_ROOT_PATH, `tsconfig.json`),
+      fs.readFileSync(`${__dirname}/src/templates/tsconfig.json`),
+    );
+
     // Set up the default project
     fs.writeFileSync(
       path.resolve(PROJECT_ROOT_PATH, `favicon.png`),
@@ -53,40 +59,31 @@ program
   .action(async function () {
     const projectDirName = path.basename(path.resolve(`./`));
     const WEB_DIR_PATH = `${__dirname}/live-builds/${projectDirName}`;
+    function removeOldWebsite(dir = WEB_DIR_PATH) {
+      const allFiles = scanDir(dir);
+      for (const i in allFiles) {
+        if (allFiles[i].isDir) {
+          removeOldWebsite(allFiles[i].path);
+          fs.rmdirSync(allFiles[i].path);
+        } else {
+          //if (allFiles[i].basename != `index.html`) {
+          fs.unlinkSync(allFiles[i].path);
+          //}
+        }
+      }
+    }
 
     async function compile() {
       console.log(`Updating...`);
 
-      // Remove old website content
-      if (fs.existsSync(WEB_DIR_PATH)) {
-        removeOldWebsite();
-        function removeOldWebsite(dir = WEB_DIR_PATH) {
-          const allFiles = scanDir(dir);
-          for (const i in allFiles) {
-            if (allFiles[i].isDir) {
-              removeOldWebsite(allFiles[i].path);
-              fs.rmdirSync(allFiles[i].path);
-            } else {
-              if (allFiles[i].basename != `index.html`) {
-                fs.unlinkSync(allFiles[i].path);
-              }
-            }
-          }
-        }
+      // Start with a clean slate
+      if (!fs.existsSync(WEB_DIR_PATH)) {
+        fs.mkdirSync(WEB_DIR_PATH);
       }
-
-      // Transpile using esbuild because it is faster
-      const { build } = require("esbuild");
-      const glob = require("glob");
-      const entryPoints = glob.sync("./**/*.ts");
-      build({
-        entryPoints,
-        outdir: WEB_DIR_PATH,
-        external: [],
-        watch: false,
-      });
+      removeOldWebsite();
 
       // Copy all image files in
+      const tsFiles = [];
       const OUT_DIR_IMAGES = `${WEB_DIR_PATH}/images`;
       if (!fs.existsSync(OUT_DIR_IMAGES)) {
         fs.mkdirSync(OUT_DIR_IMAGES);
@@ -94,20 +91,63 @@ program
       copyImages();
       function copyImages(inDir = path.resolve(`./`)) {
         const allFiles = scanDir(inDir);
-        for (const i in allFiles) {
-          if (allFiles[i].isDir) {
-            copyImages(allFiles[i].path);
+        for (const file of allFiles) {
+          if (file.isDir) {
+            copyImages(file.path);
           } else {
             const _imageExtensions = [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`];
-            if (_imageExtensions.includes(path.extname(allFiles[i].basename))) {
+            if (_imageExtensions.includes(path.extname(file.basename))) {
               fs.writeFileSync(
-                path.resolve(OUT_DIR_IMAGES, allFiles[i].basename),
-                fs.readFileSync(allFiles[i].path),
+                path.resolve(OUT_DIR_IMAGES, file.basename),
+                fs.readFileSync(file.path),
+              );
+            } else if (path.extname(file.basename) === `.ts`) {
+              tsFiles.push(
+                path.relative(path.resolve(`./`), file.path).replace(`\\`, `/`),
               );
             }
           }
         }
       }
+
+      // Set up index.html
+      const miwiFiles = [
+        `miwi/utils.ts`,
+        `miwi/page.ts`,
+        //`miwi/mdIcons.ts`,
+        //`miwi/mdIcons.ts`,
+        //`miwi/widget.ts`,
+        //`miwi/md.ts`,
+      ];
+      let scriptsText = ``;
+      // Miwi files must be added first in the correct order
+      for (const file of miwiFiles) {
+        scriptsText += `<script src="/${file.replace(`.ts`, `.js`)}"></script>`;
+      }
+      for (const file of tsFiles) {
+        if (!miwiFiles.includes(file)) {
+          scriptsText += `<script src="/${file.replace(
+            `.ts`,
+            `.js`,
+          )}"></script>`;
+        }
+      }
+      fs.writeFileSync(
+        path.resolve(WEB_DIR_PATH, `index.html`),
+        fs
+          .readFileSync(`${__dirname}/src/templates/index.html`)
+          .toString()
+          .replace("${scripts}", scriptsText),
+      );
+
+      // Transpile using esbuild because it is faster
+      require("esbuild").buildSync({
+        entryPoints: tsFiles,
+        outdir: WEB_DIR_PATH,
+        external: [],
+        watch: false,
+      });
+
       console.log(`Update finished.`);
       console.log(`Press 'Q' at any time to quit.`);
       console.log(``);
@@ -139,6 +179,8 @@ program
     process.stdin.on("keypress", (str, key) => {
       if (key.name === `q`) {
         console.log(`Quitting...`);
+        removeOldWebsite();
+        fs.rmdirSync(WEB_DIR_PATH);
         process.exit();
       }
     });
