@@ -346,7 +346,9 @@ _addNewContentCompiler({
             fontSize: numToIconSize(params.parent.textSize)
           },
           content: [
-            params.contents.icon.startsWith(_numIconTag) ? params.contents.icon.substring(_numIconTag.length) : params.contents.icon
+            document.createTextNode(
+              params.contents.icon.startsWith(_numIconTag) ? params.contents.icon.substring(_numIconTag.length) : params.contents.icon
+            )
           ]
         })
       ],
@@ -371,9 +373,11 @@ _addNewContentCompiler({
       while (openTagIndex >= 0) {
         if (openTagIndex - closeTagIndex + _inlineContentCloseTag.length > 0) {
           paragraphParts.push(
-            contentsAsString.substring(
-              closeTagIndex + _inlineContentCloseTag.length,
-              openTagIndex
+            document.createTextNode(
+              contentsAsString.substring(
+                closeTagIndex + _inlineContentCloseTag.length,
+                openTagIndex
+              )
             )
           );
         }
@@ -402,14 +406,16 @@ _addNewContentCompiler({
       }
       if (closeTagIndex + _inlineContentCloseTag.length < contentsAsString.length) {
         paragraphParts.push(
-          contentsAsString.substring(
-            closeTagIndex + _inlineContentCloseTag.length,
-            contentsAsString.length
+          document.createTextNode(
+            contentsAsString.substring(
+              closeTagIndex + _inlineContentCloseTag.length,
+              contentsAsString.length
+            )
           )
         );
       }
     } else {
-      paragraphParts.push(params.contents.toString());
+      paragraphParts.push(document.createTextNode(params.contents.toString()));
     }
     return {
       widthGrows: false,
@@ -471,18 +477,42 @@ function _defaultPageParams() {
   }
   return params;
 }
-const page = (name = `Untitled`) => {
+const page = function(options = _defaultPageParams(), ...contents) {
   var _a;
   const currentPage = document.getElementById(`currentPage`);
   if (!exists(currentPage)) {
-    console.log(document.getElementById(`pageParent`));
+    if (isContent(options)) {
+      contents.unshift(options);
+      options = _defaultPageParams();
+    }
     (_a = document.getElementById(`pageParent`)) == null ? void 0 : _a.appendChild(
-      createHtmlElement({
-        tag: "div",
-        content: ["Hello Joe!"],
-        style: {}
-      })
+      compileContentsToHtml({
+        contents: _pageWidget(options, contents),
+        parent: {
+          width: size.basedOnContents,
+          height: size.basedOnContents,
+          cornerRadius: 0,
+          outlineColor: colors.transparent,
+          outlineSize: 0,
+          background: colors.transparent,
+          shadowSize: 0,
+          shadowDirection: align.center,
+          padding: 0,
+          contentAlign: align.center,
+          contentAxis: axis.vertical,
+          contentIsScrollableX: false,
+          contentIsScrollableY: false,
+          contentSpacing: 0,
+          textSize: 1,
+          textIsBold: false,
+          textIsItalic: false,
+          textColor: colors.black,
+          contents: [],
+          htmlTag: `div`
+        },
+        startZIndex: 0
+      }).htmlElements[0]
     );
-    document.title = name;
+    document.title = options.name;
   }
 };

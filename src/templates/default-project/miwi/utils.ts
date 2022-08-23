@@ -12,7 +12,7 @@ function isString(possibleString: any): possibleString is string {
 
 function createHtmlElement(params: {
   tag: string;
-  content: any[];
+  content: Node[];
   style: { [key: string]: string | number | boolean | undefined };
   id?: string;
   class?: string;
@@ -27,7 +27,7 @@ function createHtmlElement(params: {
       adjustedKey +=
         key[i] === key[i].toLowerCase() ? key[i] : `-${key[i].toLowerCase()}`;
     }
-    styleString += `${adjustedKey} = ${params.style[key]};`;
+    styleString += `${adjustedKey}: ${params.style[key]}; `;
   }
   element.setAttribute(`style`, styleString);
 
@@ -36,12 +36,8 @@ function createHtmlElement(params: {
   if (exists(params.class)) element.setAttribute(`class`, params.class as any);
 
   // Add children
-  for (const i in params.content) {
-    if (exists(params.content[i]?.attributes)) {
-      element.appendChild(params.content[i]);
-    } else {
-      element.appendChild(document.createTextNode(params.content[i]));
-    }
+  for (const child of params.content) {
+    element.appendChild(child);
   }
 
   return element;

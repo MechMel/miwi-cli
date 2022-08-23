@@ -38,7 +38,7 @@ type _contentCompiler = {
   }) => _ContentCompilationResults;
 };
 type _ContentCompilationResults = {
-  htmlElements: (Element | string)[];
+  htmlElements: Node[];
   widthGrows: boolean;
   heightGrows: boolean;
   greatestZIndex: number;
@@ -75,7 +75,7 @@ _addNewContentCompiler({
   }): _ContentCompilationResults {
     // We'll split arrays into their individual elements and recurssively convert them to html.
     const myInfo: _ContentCompilationResults = {
-      htmlElements: [] as (Element | string)[],
+      htmlElements: [],
       widthGrows: false,
       heightGrows: false,
       greatestZIndex: params.startZIndex,
@@ -694,9 +694,11 @@ _addNewContentCompiler({
             fontSize: numToIconSize(params.parent.textSize),
           },
           content: [
-            params.contents.icon.startsWith(_numIconTag)
-              ? params.contents.icon.substring(_numIconTag.length)
-              : params.contents.icon,
+            document.createTextNode(
+              params.contents.icon.startsWith(_numIconTag)
+                ? params.contents.icon.substring(_numIconTag.length)
+                : params.contents.icon,
+            ),
           ],
         }),
       ],
@@ -728,7 +730,7 @@ _addNewContentCompiler({
     parent: Widget;
     startZIndex: number;
   }): _ContentCompilationResults {
-    const paragraphParts: (string | Element)[] = [];
+    const paragraphParts: Node[] = [];
     let greatestZIndex = params.startZIndex;
     if (typeof params.contents === `string`) {
       const contentsAsString = params.contents;
@@ -738,9 +740,11 @@ _addNewContentCompiler({
         // Read in any trailing text
         if (openTagIndex - closeTagIndex + _inlineContentCloseTag.length > 0) {
           paragraphParts.push(
-            contentsAsString.substring(
-              closeTagIndex + _inlineContentCloseTag.length,
-              openTagIndex,
+            document.createTextNode(
+              contentsAsString.substring(
+                closeTagIndex + _inlineContentCloseTag.length,
+                openTagIndex,
+              ),
             ),
           );
         }
@@ -778,14 +782,16 @@ _addNewContentCompiler({
         contentsAsString.length
       ) {
         paragraphParts.push(
-          contentsAsString.substring(
-            closeTagIndex + _inlineContentCloseTag.length,
-            contentsAsString.length,
+          document.createTextNode(
+            contentsAsString.substring(
+              closeTagIndex + _inlineContentCloseTag.length,
+              contentsAsString.length,
+            ),
           ),
         );
       }
     } else {
-      paragraphParts.push(params.contents.toString());
+      paragraphParts.push(document.createTextNode(params.contents.toString()));
     }
     return {
       widthGrows: false,
@@ -865,17 +871,47 @@ function _defaultPageParams() {
 }
 
 /** @Note Describes a web page. */
-const page = (name = `Untitled`) => {
+const page = function (
+  options = _defaultPageParams() as ReturnType<typeof _defaultPageParams>,
+  ...contents: Contents[]
+) {
   const currentPage = document.getElementById(`currentPage`);
   if (!exists(currentPage)) {
-    console.log(document.getElementById(`pageParent`));
+    // Normalize Params
+    if (isContent(options)) {
+      contents.unshift(options);
+      options = _defaultPageParams();
+    }
+
+    // Render page
     document.getElementById(`pageParent`)?.appendChild(
-      createHtmlElement({
-        tag: "div",
-        content: ["Hello Joe!"],
-        style: {},
-      }),
+      compileContentsToHtml({
+        contents: _pageWidget(options, contents),
+        parent: {
+          width: size.basedOnContents,
+          height: size.basedOnContents,
+          cornerRadius: 0,
+          outlineColor: colors.transparent,
+          outlineSize: 0,
+          background: colors.transparent,
+          shadowSize: 0,
+          shadowDirection: align.center,
+          padding: 0,
+          contentAlign: align.center,
+          contentAxis: axis.vertical,
+          contentIsScrollableX: false,
+          contentIsScrollableY: false,
+          contentSpacing: 0,
+          textSize: 1,
+          textIsBold: false,
+          textIsItalic: false,
+          textColor: colors.black,
+          contents: [],
+          htmlTag: `div`,
+        },
+        startZIndex: 0,
+      }).htmlElements[0],
     );
-    document.title = name;
+    document.title = options.name!;
   }
 };

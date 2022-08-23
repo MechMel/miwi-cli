@@ -115,7 +115,7 @@ program
         `miwi/utils.ts`,
         `miwi/mdIcons.ts`,
         `miwi/widget.ts`,
-        //`miwi/md.ts`,
+        `miwi/md.ts`,
       ];
       let scriptsText = ``;
       // Miwi files must be added first in the correct order
