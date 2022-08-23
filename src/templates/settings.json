@@ -1,0 +1,19 @@
+{
+  "filewatcher.commands": [
+    {
+      "match": "\\.*",
+      "notMatch": "\\website\\.*",
+      "isAsync": false,
+      "cmd": "cd \"${workspaceRoot}\" && miwi build",
+      "event": "onFileChange"
+    },
+    {
+      "match": "\\.*",
+      "notMatch": "\\website\\.*",
+      "isAsync": false,
+      "cmd": "cd \"${workspaceRoot}\" && miwi build",
+      "event": "onFolderChange"
+    }
+  ],
+  "liveServer.settings.port": 5501
+}

@@ -1,0 +1,24 @@
+{
+  "name": "miwi-cli",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Turn Key Ecosystems LLC",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^6.2.1",
+    "esbuild": "^0.15.5",
+    "glob": "^8.0.3",
+    "live-server": "^1.2.2",
+    "node-watch": "^0.7.3"
+  },
+  "bin": {
+    "miwi": "index.js"
+  },
+  "directories": {
+    "src": "src"
+  }
+}
