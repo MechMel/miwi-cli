@@ -113,10 +113,8 @@ program
       // Set up index.html
       const miwiFiles = [
         `miwi/utils.ts`,
-        `miwi/page.ts`,
-        //`miwi/mdIcons.ts`,
-        //`miwi/mdIcons.ts`,
-        //`miwi/widget.ts`,
+        `miwi/mdIcons.ts`,
+        `miwi/widget.ts`,
         //`miwi/md.ts`,
       ];
       let scriptsText = ``;
