@@ -14,35 +14,44 @@ program
 
 // Create a new project
 program
-  .command("new <human-project-name>")
+  .command("create <human-project-name>")
   .description("Create a new miwi project")
   .action(async function (humanProjectName) {
     const BASE_PROJECT_NAME = humanProjectName.toLowerCase().replace(/ /g, "-");
     console.log(`Creating ${BASE_PROJECT_NAME}...`);
 
-    // Create the project folder
+    // Set up the default project
     const PROJECT_DIRECTORY_NAME = `${BASE_PROJECT_NAME}-${getSomeRandomChars()}`;
     const PROJECT_ROOT_PATH = `./${PROJECT_DIRECTORY_NAME}/`;
     fs.mkdirSync(PROJECT_ROOT_PATH);
-
-    // Create the project folder
-    const MIWI_PATH = `${PROJECT_ROOT_PATH}/miwi`;
-    fs.mkdirSync(MIWI_PATH);
-
-    // Copy tsconfig.json
-    fs.writeFileSync(
-      path.resolve(PROJECT_ROOT_PATH, `tsconfig.json`),
-      fs.readFileSync(`${__dirname}/src/templates/tsconfig.json`),
-    );
-
-    // Set up the default project
-    fs.writeFileSync(
-      path.resolve(PROJECT_ROOT_PATH, `favicon.png`),
-      fs.readFileSync(`${__dirname}/src/templates/favicon.png`),
-    );
-    fs.writeFileSync(
-      path.resolve(PROJECT_ROOT_PATH, `test.ts`),
-      fs.readFileSync(`${__dirname}/src/templates/test.ts`),
+    copyDefaultProject();
+    function copyDefaultProject(
+      inDir = path.resolve(`${__dirname}/src/templates/default-project`),
+      outDir = path.resolve(PROJECT_ROOT_PATH),
+    ) {
+      const allFiles = scanDir(inDir);
+      for (const file of allFiles) {
+        if (file.isDir) {
+          fs.mkdirSync(path.resolve(outDir, file.basename));
+          copyDefaultProject(
+            path.resolve(inDir, file.basename),
+            path.resolve(outDir, file.basename),
+          );
+        } else {
+          fs.writeFileSync(
+            path.resolve(outDir, file.basename),
+            fs.readFileSync(path.resolve(inDir, file.basename)),
+          );
+        }
+      }
+    }
+    await runCmd({
+      command: `git clone https://github.com/MechMel/Miwi`,
+      path: PROJECT_ROOT_PATH,
+    });
+    fs.renameSync(
+      path.resolve(PROJECT_ROOT_PATH, `Miwi`),
+      path.resolve(PROJECT_ROOT_PATH, `miwi`),
     );
 
     // Open vscode
