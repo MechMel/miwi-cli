@@ -148,94 +148,102 @@ program
       if (event !== `ready` && event !== `close` && event !== `error`) {
         console.log(`Updating...`);
 
-        // Compute some stats on the change
-        const inPath = _targetPathNext ?? _targetPath;
-        const inPathOld =
-          _targetPathNext === undefined ? undefined : _targetPath;
-        const fileTypes = { dir: `dir`, image: `image`, script: `script` };
-        function getFileType(filePath) {
-          if (filePath === undefined) return undefined;
-          const fileExt = path.extname(filePath);
-          if (fileExt === ``) {
-            return fileTypes.dir;
-          } else if (
-            [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`].includes(fileExt)
-          ) {
-            return fileTypes.image;
-          } else if (fileExt === `.ts`) {
-            return fileTypes.script;
-          } else {
-            return undefined;
-          }
-        }
-        function getOutPath(inPath) {
-          const fileType = getFileType(inPath);
-          switch (fileType) {
-            case fileTypes.dir:
-              return path.resolve(
-                WEB_DIR_PATH,
-                path.relative(path.resolve(`./`), inPath),
-              );
-            case fileTypes.image:
-              return path.resolve(OUT_DIR_IMAGES, path.basename(inPath));
-            case fileTypes.script:
-              return path.resolve(
-                WEB_DIR_PATH,
-                path.relative(path.resolve(`./`), inPath.replace(`.ts`, `.js`)),
-              );
-            default:
-              return undefined;
-          }
-        }
-        // Images are stored all stored under an images folder, so that they can be referenced just via their name.
-        const outPath = getOutPath(inPath);
-        const outPathOld = getOutPath(inPathOld);
-
-        // Doing per file change updating will hopefully improve performance
-        switch (event) {
-          case `addDir`:
-            if (!fs.existsSync(outPath)) fs.mkdirSync(outPath);
-            break;
-          case `renameDir`:
-            fs.existsSync(outPath)
-              ? fs.renameSync(outPathOld, outPath)
-              : fs.mkdirSync(outPath);
-            break;
-          case `unlinkDir`:
-            if (fs.existsSync(outPath)) {
-              rmdirContents(outPath);
-              fs.rmdirSync(outPath);
-            }
-            break;
-          // On rename we unlink and write instead of just renmaing, because renaming an input file can change where it is outputted to.
-          case `rename`:
-          case `unlink`:
-            if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
-            if (event === `unlink`) break;
-          case `add`:
-          case `change`:
-            if (getFileType(inPath) === fileTypes.image) {
-              fs.writeFileSync(outPath, fs.readFileSync(inPath));
-            } else if (getFileType(inPath) === fileTypes.script) {
-              // Transpile using esbuild because it is faster
-              require("esbuild").buildSync({
-                entryPoints: [inPath],
-                outdir: path.parse(outPath).dir,
-                external: [],
-                watch: false,
-              });
-              const importPath = path
-                .relative(WEB_DIR_PATH, outPath)
-                .replace(`\\`, `/`);
-              if (!allScripts.includes(importPath)) {
-                allScripts.push(importPath);
-              }
+        try {
+          // Compute some stats on the change
+          const inPath = _targetPathNext ?? _targetPath;
+          const inPathOld =
+            _targetPathNext === undefined ? undefined : _targetPath;
+          const fileTypes = { dir: `dir`, image: `image`, script: `script` };
+          function getFileType(filePath) {
+            if (filePath === undefined) return undefined;
+            const fileExt = path.extname(filePath);
+            if (fileExt === ``) {
+              return fileTypes.dir;
+            } else if (
+              [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`].includes(fileExt)
+            ) {
+              return fileTypes.image;
+            } else if (fileExt === `.ts`) {
+              return fileTypes.script;
             } else {
-              // We currently don't copy unsupported file formats. We might or migth not want to change this in future
+              return undefined;
             }
-            break;
+          }
+          function getOutPath(inPath) {
+            const fileType = getFileType(inPath);
+            switch (fileType) {
+              case fileTypes.dir:
+                return path.resolve(
+                  WEB_DIR_PATH,
+                  path.relative(path.resolve(`./`), inPath),
+                );
+              case fileTypes.image:
+                return path.resolve(OUT_DIR_IMAGES, path.basename(inPath));
+              case fileTypes.script:
+                return path.resolve(
+                  WEB_DIR_PATH,
+                  path.relative(
+                    path.resolve(`./`),
+                    inPath.replace(`.ts`, `.js`),
+                  ),
+                );
+              default:
+                return undefined;
+            }
+          }
+          // Images are stored all stored under an images folder, so that they can be referenced just via their name.
+          const outPath = getOutPath(inPath);
+          const outPathOld = getOutPath(inPathOld);
+
+          // Doing per file change updating will hopefully improve performance
+          switch (event) {
+            case `addDir`:
+              if (!fs.existsSync(outPath)) fs.mkdirSync(outPath);
+              break;
+            case `renameDir`:
+              fs.existsSync(outPath)
+                ? fs.renameSync(outPathOld, outPath)
+                : fs.mkdirSync(outPath);
+              break;
+            case `unlinkDir`:
+              if (fs.existsSync(outPath)) {
+                rmdirContents(outPath);
+                fs.rmdirSync(outPath);
+              }
+              break;
+            // On rename we unlink and write instead of just renmaing, because renaming an input file can change where it is outputted to.
+            case `rename`:
+            case `unlink`:
+              if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
+              if (event === `unlink`) break;
+            case `add`:
+            case `change`:
+              if (getFileType(inPath) === fileTypes.image) {
+                fs.writeFileSync(outPath, fs.readFileSync(inPath));
+              } else if (getFileType(inPath) === fileTypes.script) {
+                // Transpile using esbuild because it is faster
+                require("esbuild").buildSync({
+                  entryPoints: [inPath],
+                  outdir: path.parse(outPath).dir,
+                  external: [],
+                  watch: false,
+                });
+                const importPath = path
+                  .relative(WEB_DIR_PATH, outPath)
+                  .replace(`\\`, `/`);
+                if (!allScripts.includes(importPath)) {
+                  allScripts.push(importPath);
+                }
+              } else {
+                // We currently don't copy unsupported file formats. We might or migth not want to change this in future
+              }
+              break;
+          }
+          updateHtml();
+        } catch (e) {
+          console.log(e);
         }
-        updateHtml();
+
         console.log(`Update finished.`);
         console.log(`Press 'Q' to quit.`);
         //console.log(`Press 'R' to reload.`);
