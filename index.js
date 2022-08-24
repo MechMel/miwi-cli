@@ -77,7 +77,7 @@ program
     process.stdin.on("keypress", (str, key) => {
       if (key.name === `q`) {
         console.log(`Quitting...`);
-        removeOldWebsite(WEB_DIR_PATH);
+        rmdirContents(WEB_DIR_PATH);
         fs.rmdirSync(WEB_DIR_PATH);
         process.exit();
       }
@@ -96,20 +96,17 @@ program
       let scriptsText = ``;
       // Miwi files must be added first in the correct order
       const miwiFiles = [
-        `miwi/utils.ts`,
-        `miwi/mdIcons.ts`,
-        `miwi/widget.ts`,
-        `miwi/md.ts`,
+        `miwi/utils.js`,
+        `miwi/mdIcons.js`,
+        `miwi/widget.js`,
+        `miwi/md.js`,
       ];
       for (const file of miwiFiles) {
-        scriptsText += `<script src="/${file.replace(`.ts`, `.js`)}"></script>`;
+        scriptsText += `<script src="/${file}"></script>`;
       }
       for (const file of allScripts) {
         if (!miwiFiles.includes(file)) {
-          scriptsText += `<script src="/${file.replace(
-            `.ts`,
-            `.js`,
-          )}"></script>`;
+          scriptsText += `<script src="/${file}"></script>`;
         }
       }
       fs.writeFileSync(
@@ -155,28 +152,44 @@ program
         const inPath = _targetPathNext ?? _targetPath;
         const inPathOld =
           _targetPathNext === undefined ? undefined : _targetPath;
-        const _imageExtensions = [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`];
-        const inPathIsImage = _imageExtensions.includes(path.extname(inPath));
-        const inPathOldIsImage =
-          inPathOld !== undefined
-            ? _imageExtensions.includes(path.extname(inPathOld))
-            : undefined;
+        const fileTypes = { dir: `dir`, image: `image`, script: `script` };
+        function getFileType(filePath) {
+          if (filePath === undefined) return undefined;
+          const fileExt = path.extname(filePath);
+          if (fileExt === ``) {
+            return fileTypes.dir;
+          } else if (
+            [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`].includes(fileExt)
+          ) {
+            return fileTypes.image;
+          } else if (fileExt === `.ts`) {
+            return fileTypes.script;
+          } else {
+            return undefined;
+          }
+        }
+        function getOutPath(inPath) {
+          const fileType = getFileType(inPath);
+          switch (fileType) {
+            case fileTypes.dir:
+              return path.resolve(
+                WEB_DIR_PATH,
+                path.relative(path.resolve(`./`), inPath),
+              );
+            case fileTypes.image:
+              return path.resolve(OUT_DIR_IMAGES, path.basename(inPath));
+            case fileTypes.script:
+              return path.resolve(
+                WEB_DIR_PATH,
+                path.relative(path.resolve(`./`), inPath.replace(`.ts`, `.js`)),
+              );
+            default:
+              return undefined;
+          }
+        }
         // Images are stored all stored under an images folder, so that they can be referenced just via their name.
-        const outPath = inPathIsImage
-          ? path.resolve(OUT_DIR_IMAGES, path.basename(inPath))
-          : path.resolve(
-              WEB_DIR_PATH,
-              path.relative(path.resolve(`./`), inPath),
-            );
-        const outPathOld =
-          inPathOld !== undefined
-            ? inPathOldIsImage
-              ? path.resolve(OUT_DIR_IMAGES, path.basename(outPathOld))
-              : path.resolve(
-                  WEB_DIR_PATH,
-                  path.relative(path.resolve(`./`), outPathOld),
-                )
-            : undefined;
+        const outPath = getOutPath(inPath);
+        const outPathOld = getOutPath(inPathOld);
 
         // Doing per file change updating will hopefully improve performance
         switch (event) {
@@ -184,14 +197,15 @@ program
             if (!fs.existsSync(outPath)) fs.mkdirSync(outPath);
             break;
           case `renameDir`:
-            if (fs.existsSync(outPath)) {
-              fs.renameSync(outPathOld, outPath);
-            } else {
-              fs.mkdirSync(outPath);
-            }
+            fs.existsSync(outPath)
+              ? fs.renameSync(outPathOld, outPath)
+              : fs.mkdirSync(outPath);
             break;
           case `unlinkDir`:
-            if (fs.existsSync(outPath)) fs.rmdirSync(outPath);
+            if (fs.existsSync(outPath)) {
+              rmdirContents(outPath);
+              fs.rmdirSync(outPath);
+            }
             break;
           // On rename we unlink and write instead of just renmaing, because renaming an input file can change where it is outputted to.
           case `rename`:
@@ -200,9 +214,9 @@ program
             if (event === `unlink`) break;
           case `add`:
           case `change`:
-            if (inPathIsImage) {
+            if (getFileType(inPath) === fileTypes.image) {
               fs.writeFileSync(outPath, fs.readFileSync(inPath));
-            } else if (path.extname(inPath) === `.ts`) {
+            } else if (getFileType(inPath) === fileTypes.script) {
               // Transpile using esbuild because it is faster
               require("esbuild").buildSync({
                 entryPoints: [inPath],
@@ -211,17 +225,17 @@ program
                 watch: false,
               });
               const importPath = path
-                .relative(path.resolve(`./`), inPath)
+                .relative(WEB_DIR_PATH, outPath)
                 .replace(`\\`, `/`);
               if (!allScripts.includes(importPath)) {
                 allScripts.push(importPath);
               }
-              updateHtml();
             } else {
               // We currently don't copy unsupported file formats. We might or migth not want to change this in future
             }
             break;
         }
+        updateHtml();
         console.log(`Update finished.`);
         console.log(`Press 'Q' to quit.`);
         //console.log(`Press 'R' to reload.`);
@@ -233,16 +247,14 @@ program
 // Run this program
 program.parse(process.argv);
 
-function removeOldWebsite(dir) {
+function rmdirContents(dir) {
   const allFiles = scanDir(dir);
-  for (const i in allFiles) {
-    if (allFiles[i].isDir) {
-      removeOldWebsite(allFiles[i].path);
-      fs.rmdirSync(allFiles[i].path);
+  for (const file of allFiles) {
+    if (file.isDir) {
+      rmdirContents(file.path);
+      fs.rmdirSync(file.path);
     } else {
-      //if (allFiles[i].basename != `index.html`) {
-      fs.unlinkSync(allFiles[i].path);
-      //}
+      fs.unlinkSync(file.path);
     }
   }
 }
