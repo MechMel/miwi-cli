@@ -12,7 +12,8 @@
     "commander": "^6.2.1",
     "esbuild": "^0.15.5",
     "live-server": "^1.2.2",
-    "node-watch": "^0.7.3"
+    "node-watch": "^0.7.3",
+    "watcher": "^1.2.0"
   },
   "bin": {
     "miwi": "index.js"

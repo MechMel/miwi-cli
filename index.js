@@ -68,70 +68,43 @@ program
   .action(async function () {
     const projectDirName = path.basename(path.resolve(`./`));
     const WEB_DIR_PATH = `${__dirname}/live-builds/${projectDirName}`;
-    function removeOldWebsite(dir = WEB_DIR_PATH) {
-      const allFiles = scanDir(dir);
-      for (const i in allFiles) {
-        if (allFiles[i].isDir) {
-          removeOldWebsite(allFiles[i].path);
-          fs.rmdirSync(allFiles[i].path);
-        } else {
-          //if (allFiles[i].basename != `index.html`) {
-          fs.unlinkSync(allFiles[i].path);
-          //}
-        }
-      }
-    }
+    const OUT_DIR_IMAGES = `${WEB_DIR_PATH}/images`;
 
-    async function compile() {
-      console.log(`Updating...`);
-
-      // Start with a clean slate
-      if (!fs.existsSync(WEB_DIR_PATH)) {
-        fs.mkdirSync(WEB_DIR_PATH);
+    // Quit on Q
+    const readline = require("readline");
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+    process.stdin.on("keypress", (str, key) => {
+      if (key.name === `q`) {
+        console.log(`Quitting...`);
+        removeOldWebsite(WEB_DIR_PATH);
+        fs.rmdirSync(WEB_DIR_PATH);
+        process.exit();
       }
-      removeOldWebsite();
+      // Maybe implement press 'R' to reload.
+    });
 
-      // Copy all image files in
-      const tsFiles = [];
-      const OUT_DIR_IMAGES = `${WEB_DIR_PATH}/images`;
-      if (!fs.existsSync(OUT_DIR_IMAGES)) {
-        fs.mkdirSync(OUT_DIR_IMAGES);
-      }
-      copyImages();
-      function copyImages(inDir = path.resolve(`./`)) {
-        const allFiles = scanDir(inDir);
-        for (const file of allFiles) {
-          if (file.isDir) {
-            copyImages(file.path);
-          } else {
-            const _imageExtensions = [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`];
-            if (_imageExtensions.includes(path.extname(file.basename))) {
-              fs.writeFileSync(
-                path.resolve(OUT_DIR_IMAGES, file.basename),
-                fs.readFileSync(file.path),
-              );
-            } else if (path.extname(file.basename) === `.ts`) {
-              tsFiles.push(
-                path.relative(path.resolve(`./`), file.path).replace(`\\`, `/`),
-              );
-            }
-          }
-        }
-      }
-
+    // Start the server
+    console.log(``);
+    console.log(`Starting a test server...`);
+    if (!fs.existsSync(WEB_DIR_PATH)) fs.mkdirSync(WEB_DIR_PATH);
+    if (!fs.existsSync(OUT_DIR_IMAGES)) fs.mkdirSync(OUT_DIR_IMAGES);
+    const allScripts = [];
+    updateHtml();
+    function updateHtml() {
       // Set up index.html
+      let scriptsText = ``;
+      // Miwi files must be added first in the correct order
       const miwiFiles = [
         `miwi/utils.ts`,
         `miwi/mdIcons.ts`,
         `miwi/widget.ts`,
         `miwi/md.ts`,
       ];
-      let scriptsText = ``;
-      // Miwi files must be added first in the correct order
       for (const file of miwiFiles) {
         scriptsText += `<script src="/${file.replace(`.ts`, `.js`)}"></script>`;
       }
-      for (const file of tsFiles) {
+      for (const file of allScripts) {
         if (!miwiFiles.includes(file)) {
           scriptsText += `<script src="/${file.replace(
             `.ts`,
@@ -146,23 +119,7 @@ program
           .toString()
           .replace("${scripts}", scriptsText),
       );
-
-      // Transpile using esbuild because it is faster
-      require("esbuild").buildSync({
-        entryPoints: tsFiles,
-        outdir: WEB_DIR_PATH,
-        external: [],
-        watch: false,
-      });
-
-      console.log(`Update finished.`);
-      console.log(`Press 'Q' at any time to quit.`);
-      console.log(``);
     }
-    // Start the server
-    console.log(``);
-    await compile();
-    console.log(`Strarting a test server...`);
     require("live-server").start({
       port: 7171,
       root: WEB_DIR_PATH,
@@ -174,24 +131,118 @@ program
     console.log(``);
 
     // Run the watcher
-    const watcher = require("node-watch")(path.resolve(`./`), {
+    const watcher = new (require(`watcher`))(path.resolve(`./`), {
       recursive: true,
+      // Don't copy config files
+      ignore: (targetPath) => {
+        let shouldIgnore = false;
+        for (const blackListDir of [
+          `.git`,
+          `.vscode`,
+          `node_modules`,
+          `tsconfig.json`,
+        ]) {
+          shouldIgnore = shouldIgnore || targetPath.indexOf(blackListDir) > -1;
+        }
+        return shouldIgnore;
+      },
     });
-    watcher.on(`change`, compile);
+    watcher.on("all", (event, _targetPath, _targetPathNext) => {
+      if (event !== `ready` && event !== `close` && event !== `error`) {
+        console.log(`Updating...`);
 
-    // Quit on Q
-    const readline = require("readline");
-    readline.emitKeypressEvents(process.stdin);
-    process.stdin.setRawMode(true);
-    process.stdin.on("keypress", (str, key) => {
-      if (key.name === `q`) {
-        console.log(`Quitting...`);
-        removeOldWebsite();
-        fs.rmdirSync(WEB_DIR_PATH);
-        process.exit();
+        // Compute some stats on the change
+        const inPath = _targetPathNext ?? _targetPath;
+        const inPathOld =
+          _targetPathNext === undefined ? undefined : _targetPath;
+        const _imageExtensions = [`.ico`, `.svg`, `.png`, `.jpg`, `.jpeg`];
+        const inPathIsImage = _imageExtensions.includes(path.extname(inPath));
+        const inPathOldIsImage =
+          inPathOld !== undefined
+            ? _imageExtensions.includes(path.extname(inPathOld))
+            : undefined;
+        // Images are stored all stored under an images folder, so that they can be referenced just via their name.
+        const outPath = inPathIsImage
+          ? path.resolve(OUT_DIR_IMAGES, path.basename(inPath))
+          : path.resolve(
+              WEB_DIR_PATH,
+              path.relative(path.resolve(`./`), inPath),
+            );
+        const outPathOld =
+          inPathOld !== undefined
+            ? inPathOldIsImage
+              ? path.resolve(OUT_DIR_IMAGES, path.basename(outPathOld))
+              : path.resolve(
+                  WEB_DIR_PATH,
+                  path.relative(path.resolve(`./`), outPathOld),
+                )
+            : undefined;
+
+        // Doing per file change updating will hopefully improve performance
+        switch (event) {
+          case `addDir`:
+            if (!fs.existsSync(outPath)) fs.mkdirSync(outPath);
+            break;
+          case `renameDir`:
+            if (fs.existsSync(outPath)) {
+              fs.renameSync(outPathOld, outPath);
+            } else {
+              fs.mkdirSync(outPath);
+            }
+            break;
+          case `unlinkDir`:
+            if (fs.existsSync(outPath)) fs.rmdirSync(outPath);
+            break;
+          // On rename we unlink and write instead of just renmaing, because renaming an input file can change where it is outputted to.
+          case `rename`:
+          case `unlink`:
+            if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
+            if (event === `unlink`) break;
+          case `add`:
+          case `change`:
+            if (inPathIsImage) {
+              fs.writeFileSync(outPath, fs.readFileSync(inPath));
+            } else if (path.extname(inPath) === `.ts`) {
+              // Transpile using esbuild because it is faster
+              require("esbuild").buildSync({
+                entryPoints: [inPath],
+                outdir: path.parse(outPath).dir,
+                external: [],
+                watch: false,
+              });
+              const importPath = path
+                .relative(path.resolve(`./`), inPath)
+                .replace(`\\`, `/`);
+              if (!allScripts.includes(importPath)) {
+                allScripts.push(importPath);
+              }
+              updateHtml();
+            } else {
+              // We currently don't copy unsupported file formats. We might or migth not want to change this in future
+            }
+            break;
+        }
+        console.log(`Update finished.`);
+        console.log(`Press 'Q' to quit.`);
+        //console.log(`Press 'R' to reload.`);
+        console.log(``);
       }
     });
   });
 
 // Run this program
 program.parse(process.argv);
+
+function removeOldWebsite(dir) {
+  const allFiles = scanDir(dir);
+  for (const i in allFiles) {
+    if (allFiles[i].isDir) {
+      removeOldWebsite(allFiles[i].path);
+      fs.rmdirSync(allFiles[i].path);
+    } else {
+      //if (allFiles[i].basename != `index.html`) {
+      fs.unlinkSync(allFiles[i].path);
+      //}
+    }
+  }
+}
