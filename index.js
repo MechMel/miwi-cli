@@ -97,6 +97,7 @@ program
       // Miwi files must be added first in the correct order
       const miwiFiles = [
         `miwi/utils.js`,
+        `miwi/var.js`,
         `miwi/mdIcons.js`,
         `miwi/widget.js`,
         `miwi/md.js`,
