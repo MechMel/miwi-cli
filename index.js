@@ -98,7 +98,7 @@ program
       const miwiFiles = [
         `miwi/utils.js`,
         `miwi/var.js`,
-        `miwi/mdIcons.js`,
+        `miwi/basicTypes.js``miwi/mdIcons.js`,
         `miwi/widget.js`,
         `miwi/md.js`,
       ];
