@@ -100,7 +100,7 @@ program
         `miwi/var.js`,
         `miwi/bool.js`,
         `miwi/num.js`,
-        `miwi/chars.js`,
+        `miwi/str.js`,
         `miwi/mdIcons.js`,
         `miwi/widget.js`,
         `miwi/md.js`,
