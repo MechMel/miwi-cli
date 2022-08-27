@@ -2,6 +2,19 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "StartDebugOnVSCodeOpen",
+      "command": "${command:workbench.action.debug.start}",
+      "type": "shell",
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared",
+        "close": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
       "label": "StartMiwiTestServer",
       "command": "miwi",
       "args": ["test"],
