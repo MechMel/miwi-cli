@@ -7,6 +7,17 @@ const { program } = require("commander");
 const runCmd = require("./src/utils/run-cmd");
 const { getSomeRandomChars, scanDir } = require("./src/utils/utils");
 
+const getLiveBuildPath = (projectDirName) =>
+  `${__dirname}/live-builds/${projectDirName}`;
+
+const replaceAll = (inStr, pattern, replacement) => {
+  let outStr = inStr;
+  while (outStr !== outStr.replace(pattern, replacement)) {
+    outStr = outStr.replace(pattern, replacement);
+  }
+  return outStr;
+};
+
 // Version & Program description
 program
   .version(CLI_VERSION, "-v", "Output the version number")
@@ -38,10 +49,21 @@ program
             path.resolve(outDir, file.basename),
           );
         } else {
-          fs.writeFileSync(
-            path.resolve(outDir, file.basename),
-            fs.readFileSync(path.resolve(inDir, file.basename)),
+          let inFileContents = fs.readFileSync(
+            path.resolve(inDir, file.basename),
           );
+          if (
+            [`.json`, `.js`, `.ts`, `.html`].includes(
+              path.extname(file.basename),
+            )
+          ) {
+            inFileContents = replaceAll(
+              inFileContents.toString(),
+              `\${liveBuildRootPath}`,
+              replaceAll(getLiveBuildPath(PROJECT_DIRECTORY_NAME), `\\`, `/`),
+            );
+          }
+          fs.writeFileSync(path.resolve(outDir, file.basename), inFileContents);
         }
       }
     }
@@ -67,7 +89,7 @@ program
   .description("Compile the current project into a website")
   .action(async function () {
     const projectDirName = path.basename(path.resolve(`./`));
-    const WEB_DIR_PATH = `${__dirname}/live-builds/${projectDirName}`;
+    const WEB_DIR_PATH = getLiveBuildPath(projectDirName);
     const OUT_DIR_IMAGES = `${WEB_DIR_PATH}/images`;
 
     // Quit on Q
@@ -125,7 +147,8 @@ program
       port: 7171,
       root: WEB_DIR_PATH,
       file: `index.html`,
-      open: true,
+      // We want VSCode to open a browser so we can debug the code.
+      open: false,
       logLevel: 0,
     });
     console.log(`The test server is live.`);
@@ -231,10 +254,13 @@ program
                   outdir: path.parse(outPath).dir,
                   external: [],
                   watch: false,
+                  sourcemap: true,
                 });
-                const importPath = path
-                  .relative(WEB_DIR_PATH, outPath)
-                  .replace(`\\`, `/`);
+                const importPath = replaceAll(
+                  path.relative(WEB_DIR_PATH, outPath),
+                  `\\`,
+                  `/`,
+                );
                 if (!allScripts.includes(importPath)) {
                   allScripts.push(importPath);
                 }

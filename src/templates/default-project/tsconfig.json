@@ -5,6 +5,7 @@
     "watch": false,
     "strict": true,
     "declaration": false,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "sourceMap": true
   }
 }
