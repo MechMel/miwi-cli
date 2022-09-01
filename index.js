@@ -106,6 +106,8 @@ program
       // Maybe implement press 'R' to reload.
     });
 
+    // Delete the old debug dir
+
     // Start the server
     console.log(``);
     console.log(`Starting a test server...`);
@@ -120,6 +122,7 @@ program
       const miwiFiles = [
         `miwi/utils.js`,
         `miwi/var.js`,
+        `miwi/list.js`,
         `miwi/bool.js`,
         `miwi/num.js`,
         `miwi/str.js`,
