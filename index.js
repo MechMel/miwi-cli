@@ -133,7 +133,7 @@ program
       for (const file of miwiFiles) {
         scriptsText += `<script src="/${file}"></script>`;
       }
-      for (const file of allScripts) {
+      for (const file of allScripts.sort()) {
         if (!miwiFiles.includes(file)) {
           scriptsText += `<script src="/${file}"></script>`;
         }
@@ -244,7 +244,21 @@ program
             // On rename we unlink and write instead of just renmaing, because renaming an input file can change where it is outputted to.
             case `rename`:
             case `unlink`:
-              if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
+              if (fs.existsSync(outPath)) {
+                fs.unlinkSync(outPath);
+                const scriptImportPath = replaceAll(
+                  path.relative(WEB_DIR_PATH, outPath),
+                  `\\`,
+                  `/`,
+                );
+                console.log(scriptImportPath);
+                for (let i in allScripts) {
+                  if (allScripts[i] === scriptImportPath) {
+                    allScripts.splice(i, 1);
+                    i--;
+                  }
+                }
+              }
               if (event === `unlink`) break;
             case `add`:
             case `change`:
