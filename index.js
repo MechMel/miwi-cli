@@ -7,9 +7,6 @@ const { program } = require("commander");
 const runCmd = require("./src/utils/run-cmd");
 const { getSomeRandomChars, scanDir } = require("./src/utils/utils");
 
-const getLiveBuildPath = (projectDirName) =>
-  `${__dirname}/live-builds/${projectDirName}`;
-
 const replaceAll = (inStr, pattern, replacement) => {
   let outStr = inStr;
   while (outStr !== outStr.replace(pattern, replacement)) {
@@ -17,6 +14,8 @@ const replaceAll = (inStr, pattern, replacement) => {
   }
   return outStr;
 };
+
+const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
 
 // Version & Program description
 program
@@ -28,6 +27,29 @@ program
   .command("create <human-project-name>")
   .description("Create a new miwi project")
   .action(async function (humanProjectName) {
+    // Ensure vscode is setup properly
+    const VSCODE_ROOT_DIR = path.resolve(
+      process.env.APPDATA || process.env.HOME + "/.local/share",
+      `./Code/User`,
+    );
+    const VSCODE_SETTINGS = path.resolve(VSCODE_ROOT_DIR, `./settings.json`);
+    const settingsJson = fs.existsSync(VSCODE_SETTINGS)
+      ? JSON.parse(fs.readFileSync(VSCODE_SETTINGS))
+      : {};
+    const templateSettingsJson = JSON.parse(
+      fs.readFileSync(`${__dirname}/src/templates/settings.json`),
+    );
+    for (const k in templateSettingsJson) {
+      settingsJson[k] = templateSettingsJson[k];
+    }
+    fs.writeFileSync(VSCODE_SETTINGS, JSON.stringify(settingsJson, null, 2));
+    const VSCODE_TASKS = path.resolve(VSCODE_ROOT_DIR, `./tasks.json`);
+    fs.writeFileSync(
+      VSCODE_TASKS,
+      fs.readFileSync(`${__dirname}/src/templates/tasks.json`),
+    );
+
+    // Set up the project
     const BASE_PROJECT_NAME = humanProjectName.toLowerCase().replace(/ /g, "-");
     console.log(`Creating ${BASE_PROJECT_NAME}...`);
 
@@ -59,8 +81,8 @@ program
           ) {
             inFileContents = replaceAll(
               inFileContents.toString(),
-              `\${liveBuildRootPath}`,
-              replaceAll(getLiveBuildPath(PROJECT_DIRECTORY_NAME), `\\`, `/`),
+              `\${liveDebugRootPath}`,
+              LIVE_DEBUG_DIR,
             );
           }
           fs.writeFileSync(path.resolve(outDir, file.basename), inFileContents);
@@ -89,8 +111,7 @@ program
   .description("Compile the current project into a website")
   .action(async function () {
     const projectDirName = path.basename(path.resolve(`./`));
-    const WEB_DIR_PATH = getLiveBuildPath(projectDirName);
-    const OUT_DIR_IMAGES = `${WEB_DIR_PATH}/images`;
+    const OUT_DIR_IMAGES = `${LIVE_DEBUG_DIR}/images`;
 
     // Quit on Q
     const readline = require("readline");
@@ -99,19 +120,20 @@ program
     process.stdin.on("keypress", (str, key) => {
       if (key.name === `q`) {
         console.log(`Quitting...`);
-        rmdirContents(WEB_DIR_PATH);
-        fs.rmdirSync(WEB_DIR_PATH);
+        rmdirContents(LIVE_DEBUG_DIR);
+        //fs.rmdirSync(WEB_DIR_PATH);
         process.exit();
       }
       // Maybe implement press 'R' to reload.
     });
 
     // Delete the old debug dir
+    rmdirContents(LIVE_DEBUG_DIR);
 
     // Start the server
     console.log(``);
     console.log(`Starting a test server...`);
-    if (!fs.existsSync(WEB_DIR_PATH)) fs.mkdirSync(WEB_DIR_PATH);
+    if (!fs.existsSync(LIVE_DEBUG_DIR)) fs.mkdirSync(LIVE_DEBUG_DIR);
     if (!fs.existsSync(OUT_DIR_IMAGES)) fs.mkdirSync(OUT_DIR_IMAGES);
     const allScripts = [];
     updateHtml();
@@ -139,7 +161,7 @@ program
         }
       }
       fs.writeFileSync(
-        path.resolve(WEB_DIR_PATH, `index.html`),
+        path.resolve(LIVE_DEBUG_DIR, `index.html`),
         fs
           .readFileSync(`${__dirname}/src/templates/index.html`)
           .toString()
@@ -148,7 +170,7 @@ program
     }
     require("live-server").start({
       port: 7171,
-      root: WEB_DIR_PATH,
+      root: LIVE_DEBUG_DIR,
       file: `index.html`,
       // We want VSCode to open a browser so we can debug the code.
       open: false,
@@ -204,14 +226,14 @@ program
             switch (fileType) {
               case fileTypes.dir:
                 return path.resolve(
-                  WEB_DIR_PATH,
+                  LIVE_DEBUG_DIR,
                   path.relative(path.resolve(`./`), inPath),
                 );
               case fileTypes.image:
                 return path.resolve(OUT_DIR_IMAGES, path.basename(inPath));
               case fileTypes.script:
                 return path.resolve(
-                  WEB_DIR_PATH,
+                  LIVE_DEBUG_DIR,
                   path.relative(
                     path.resolve(`./`),
                     inPath.replace(`.ts`, `.js`),
@@ -247,7 +269,7 @@ program
               if (fs.existsSync(outPath)) {
                 fs.unlinkSync(outPath);
                 const scriptImportPath = replaceAll(
-                  path.relative(WEB_DIR_PATH, outPath),
+                  path.relative(LIVE_DEBUG_DIR, outPath),
                   `\\`,
                   `/`,
                 );
@@ -274,7 +296,7 @@ program
                   sourcemap: true,
                 });
                 const importPath = replaceAll(
-                  path.relative(WEB_DIR_PATH, outPath),
+                  path.relative(LIVE_DEBUG_DIR, outPath),
                   `\\`,
                   `/`,
                 );
@@ -303,13 +325,15 @@ program
 program.parse(process.argv);
 
 function rmdirContents(dir) {
-  const allFiles = scanDir(dir);
-  for (const file of allFiles) {
-    if (file.isDir) {
-      rmdirContents(file.path);
-      fs.rmdirSync(file.path);
-    } else {
-      fs.unlinkSync(file.path);
+  if (fs.existsSync(dir)) {
+    const allFiles = scanDir(dir);
+    for (const file of allFiles) {
+      if (file.isDir) {
+        rmdirContents(file.path);
+        fs.rmdirSync(file.path);
+      } else {
+        fs.unlinkSync(file.path);
+      }
     }
   }
 }

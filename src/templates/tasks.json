@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "StartMiwiTestServer",
+      "command": "miwi",
+      "args": ["test"],
+      "type": "shell",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true
+      },
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": ""
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Updating",
+          "endsPattern": "to quit"
+        }
+      }
+    },
+    {
+      "label": "CloseTheTerminal",
+      "command": "${command:workbench.action.terminal.kill}",
+      "type": "shell",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true
+      }
+    }
+  ]
+}

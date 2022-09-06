@@ -1,0 +1,17 @@
+{
+  "task.allowAutomaticTasks": "on",
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "chrome",
+        "preLaunchTask": "StartMiwiTestServer",
+        "request": "launch",
+        "name": "Start a Miwi Debug Session",
+        "url": "http://localhost:7171/",
+        "webRoot": "${liveDebugRootPath}",
+        "postDebugTask": "CloseTheTerminal"
+      }
+    ]
+  }
+}
