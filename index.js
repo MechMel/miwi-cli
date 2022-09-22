@@ -37,7 +37,11 @@ program
       ? JSON.parse(fs.readFileSync(VSCODE_SETTINGS))
       : {};
     const templateSettingsJson = JSON.parse(
-      fs.readFileSync(`${__dirname}/src/templates/settings.json`),
+      replaceAll(
+        fs.readFileSync(`${__dirname}/src/templates/settings.json`).toString(),
+        `\${liveDebugRootPath}`,
+        LIVE_DEBUG_DIR,
+      ),
     );
     for (const k in templateSettingsJson) {
       settingsJson[k] = templateSettingsJson[k];
