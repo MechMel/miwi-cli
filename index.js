@@ -15,7 +15,8 @@ const replaceAll = (inStr, pattern, replacement) => {
   return outStr;
 };
 
-const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
+//const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
+const LIVE_DEBUG_DIR = replaceAll(`./.miwi/debug`, `\\`, `/`);
 
 // Version & Program description
 program
@@ -101,6 +102,15 @@ program
       path.resolve(PROJECT_ROOT_PATH, `Miwi`),
       path.resolve(PROJECT_ROOT_PATH, `miwi`),
     );
+    // We have to set these up here, because we globally hide the from VSCode.
+    fs.writeFileSync(
+      `${PROJECT_ROOT_PATH}/.miwi-config`,
+      JSON.stringify({}, null, 2),
+    );
+    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi`);
+    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/client-build`);
+    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/cloud-build`);
+    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/debug`);
 
     // Open vscode
     await runCmd({
@@ -201,7 +211,12 @@ program
       },
     });
     watcher.on("all", (event, _targetPath, _targetPathNext) => {
-      if (event !== `ready` && event !== `close` && event !== `error`) {
+      if (
+        event !== `ready` &&
+        event !== `close` &&
+        event !== `error` &&
+        !_targetPath.includes(`.miwi`)
+      ) {
         console.log(`Updating...`);
 
         try {

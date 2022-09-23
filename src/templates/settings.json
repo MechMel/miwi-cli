@@ -13,5 +13,14 @@
         "postDebugTask": "CloseTheTerminal"
       }
     ]
+  },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    ".miwi-config": "tsconfig.json"
+  },
+  "files.exclude": {
+    "**/.miwi": true,
+    "**/.miwi-config": true
   }
 }
