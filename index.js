@@ -28,40 +28,14 @@ program
   .command("create <human-project-name>")
   .description("Create a new miwi project")
   .action(async function (humanProjectName) {
-    // Ensure vscode is setup properly
-    const VSCODE_ROOT_DIR = path.resolve(
-      process.env.APPDATA || process.env.HOME + "/.local/share",
-      `./Code/User`,
-    );
-    const VSCODE_SETTINGS = path.resolve(VSCODE_ROOT_DIR, `./settings.json`);
-    const settingsJson = fs.existsSync(VSCODE_SETTINGS)
-      ? JSON.parse(fs.readFileSync(VSCODE_SETTINGS))
-      : {};
-    const templateSettingsJson = JSON.parse(
-      replaceAll(
-        fs.readFileSync(`${__dirname}/src/templates/settings.json`).toString(),
-        `\${liveDebugRootPath}`,
-        LIVE_DEBUG_DIR,
-      ),
-    );
-    for (const k in templateSettingsJson) {
-      settingsJson[k] = templateSettingsJson[k];
-    }
-    fs.writeFileSync(VSCODE_SETTINGS, JSON.stringify(settingsJson, null, 2));
-    const VSCODE_TASKS = path.resolve(VSCODE_ROOT_DIR, `./tasks.json`);
-    fs.writeFileSync(
-      VSCODE_TASKS,
-      fs.readFileSync(`${__dirname}/src/templates/tasks.json`),
-    );
-
-    // Set up the project
+    // Set up the projet's root dir
     const BASE_PROJECT_NAME = humanProjectName.toLowerCase().replace(/ /g, "-");
     console.log(`Creating ${BASE_PROJECT_NAME}...`);
-
-    // Set up the default project
     const PROJECT_DIRECTORY_NAME = `${BASE_PROJECT_NAME}-${getSomeRandomChars()}`;
     const PROJECT_ROOT_PATH = `./${PROJECT_DIRECTORY_NAME}/`;
     fs.mkdirSync(PROJECT_ROOT_PATH);
+
+    // Copy up the default files
     copyDefaultProject();
     function copyDefaultProject(
       inDir = path.resolve(`${__dirname}/src/templates/default-project`),
@@ -94,6 +68,8 @@ program
         }
       }
     }
+
+    // Clone Miwi
     await runCmd({
       command: `git clone https://github.com/MechMel/Miwi`,
       path: PROJECT_ROOT_PATH,
@@ -102,15 +78,6 @@ program
       path.resolve(PROJECT_ROOT_PATH, `Miwi`),
       path.resolve(PROJECT_ROOT_PATH, `miwi`),
     );
-    // We have to set these up here, because we globally hide the from VSCode.
-    fs.writeFileSync(
-      `${PROJECT_ROOT_PATH}/.miwi-config`,
-      JSON.stringify({}, null, 2),
-    );
-    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi`);
-    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/client-build`);
-    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/cloud-build`);
-    fs.mkdirSync(`${PROJECT_ROOT_PATH}/.miwi/debug`);
 
     // Open vscode
     await runCmd({
