@@ -53,4 +53,26 @@ module.exports = {
       path: path.resolve(dir, fileName),
       isDir: fs.statSync(path.resolve(dir, fileName)).isDirectory(),
     })),
+
+  rmdirContents: (dir) => {
+    if (fs.existsSync(dir)) {
+      const allFiles = module.exports.scanDir(dir);
+      for (const file of allFiles) {
+        if (file.isDir) {
+          module.exports.rmdirContents(file.path);
+          fs.rmdirSync(file.path);
+        } else {
+          fs.unlinkSync(file.path);
+        }
+      }
+    }
+  },
+
+  replaceAll: (inStr, pattern, replacement) => {
+    let outStr = inStr;
+    while (outStr !== outStr.replace(pattern, replacement)) {
+      outStr = outStr.replace(pattern, replacement);
+    }
+    return outStr;
+  },
 };

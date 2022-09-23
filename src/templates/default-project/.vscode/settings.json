@@ -5,7 +5,7 @@
     "configurations": [
       {
         "type": "chrome",
-        "preLaunchTask": "StartMiwiTestServer",
+        "preLaunchTask": "StartMiwiDebugServer",
         "request": "launch",
         "name": "Start a Miwi Debug Session",
         "url": "http://localhost:7171/",

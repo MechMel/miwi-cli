@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "StartMiwiTestServer",
+      "label": "StartMiwiDebugServer",
       "command": "miwi",
-      "args": ["test"],
+      "args": ["debug"],
       "type": "shell",
       "isBackground": true,
       "presentation": {
