@@ -167,7 +167,7 @@ module.exports = {
                   outdir: path.parse(outPath).dir,
                   external: [],
                   watch: false,
-                  sourcemap: true,
+                  sourcemap: shouldWatch ? true : false,
                 });
                 const importPath = replaceAll(
                   path.relative(outDir, outPath),
@@ -227,12 +227,16 @@ module.exports = {
       });
       watcher.on("all", buildOneFile);
     } else {
-      const files = scanDir(inDir);
-      files.map((file) => {
-        if (!dirBlackList.includes(file.basename)) {
-          buildOneFile(file.isDir ? `addDir` : `add`, file.path, undefined);
-        }
-      });
+      compileRec(inDir);
+      function compileRec(dir) {
+        const files = scanDir(dir);
+        files.map((file) => {
+          if (!dirBlackList.includes(file.basename)) {
+            buildOneFile(file.isDir ? `addDir` : `add`, file.path, undefined);
+            if (file.isDir) compileRec(`${dir}/${file.basename}`);
+          }
+        });
+      }
       console.log(``);
       console.log(`Build finished.`);
     }

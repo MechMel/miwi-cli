@@ -11,10 +11,17 @@ const {
   scanDir,
   replaceAll,
 } = require("./src/utils/utils");
+const yaml = require("js-yaml");
+const {
+  createInitialProject,
+  getAwsHostingDetails,
+} = require("./src/aws-serverless-hosting.js");
+const qrcode = require("qrcode-terminal");
 
 //const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
 const LIVE_DEBUG_DIR = `./.miwi/debug`;
 const CLIENT_BUILD_DIR = `./.miwi/client-build`;
+const CLOUD_BUILD_DIR = `./.miwi/cloud-build`;
 
 // Version & Program description
 program
@@ -99,13 +106,58 @@ program
 // Build the current project
 program
   .command("build")
-  .description("Compile the current project into a website")
+  .description("Compile the current project into cloud config and a website")
   .action(async function () {
     build({
       inDir: `./`,
       outDir: CLIENT_BUILD_DIR,
       shouldWatch: false,
     });
+  });
+
+// Deploys the current project
+program
+  .command("deploy")
+  .description("Deploy the current project as a website")
+  .action(async function () {
+    const awsHostingDetailsPath = getAwsHostingDetails(CLOUD_BUILD_DIR);
+    if (!fs.existsSync(awsHostingDetailsPath)) {
+      await createInitialProject(CLOUD_BUILD_DIR);
+
+      // Deploy the cloud
+      await runCmd({
+        command: `serverless deploy`,
+        path: CLOUD_BUILD_DIR,
+      });
+    }
+
+    // Build the client
+    await runCmd({
+      command: `miwi build`,
+      path: `./`,
+    });
+
+    // Deploy the client
+    const awsHostingDetails = JSON.parse(
+      fs.readFileSync(awsHostingDetailsPath),
+    );
+    const awsProfile = `tke-rel`;
+    await runCmd({
+      command: `aws s3 sync ./ s3://${awsHostingDetails.hostingBucketID}  --exclude "*.js" --delete --profile ${awsProfile} --acl public-read --region us-east-1`,
+      path: CLIENT_BUILD_DIR,
+    });
+    await runCmd({
+      command: `aws s3 sync ./ s3://${awsHostingDetails.hostingBucketID}  --exclude "*" --include "*.js" --content-type application/javascript --profile ${awsProfile} --acl public-read --region us-east-1`,
+      path: CLIENT_BUILD_DIR,
+    });
+    await runCmd({
+      command: `aws cloudfront create-invalidation --profile ${awsProfile} --distribution-id ${awsHostingDetails.cloudFrontDistributionID} --paths "/*"`,
+      path: CLOUD_BUILD_DIR,
+    });
+
+    // Print a QR code
+    console.log(`PWA URL: ${awsHostingDetails.pwaURL}`);
+    qrcode.generate(awsHostingDetails.pwaURL);
   });
 
 // Run this program
