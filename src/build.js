@@ -60,6 +60,30 @@ module.exports = {
           .toString()
           .replace("${scripts}", scriptsText),
       );
+
+      /*const puppeteer = require("puppeteer");
+      (async () => {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+
+        // Log errors
+        const logFilePath = `${__dirname}/temp-log.txt`;
+        fs.writeFileSync(logFilePath, ``);
+        page.on("pageerror", (error) => {
+          const isRefError = error.message.startsWith(`ReferenceError:`);
+          if (isRefError) {
+            //const getProp
+            fs.writeFileSync(
+              logFilePath,
+              fs.readFileSync(logFilePath) + error.message + "\n\n",
+            );
+          }
+        });
+
+        await page.goto(`http://localhost:7171/`);
+
+        await browser.close();
+      })();*/
     }
 
     // Run the watcher
@@ -79,7 +103,12 @@ module.exports = {
           const inPath = _targetPathNext ?? _targetPath;
           const inPathOld =
             _targetPathNext === undefined ? undefined : _targetPath;
-          const fileTypes = { dir: `dir`, image: `image`, script: `script` };
+          const fileTypes = {
+            dir: `dir`,
+            image: `image`,
+            script: `script`,
+            file: `file`,
+          };
           function getFileType(filePath) {
             if (filePath === undefined) return undefined;
             const fileExt = path.extname(filePath);
@@ -92,13 +121,14 @@ module.exports = {
             } else if (fileExt === `.ts`) {
               return fileTypes.script;
             } else {
-              return undefined;
+              return fileTypes.file;
             }
           }
           function getOutPath(inPath) {
             const fileType = getFileType(inPath);
             switch (fileType) {
               case fileTypes.dir:
+              case fileTypes.file:
                 return path.resolve(
                   outDir,
                   path.relative(path.resolve(`./`), inPath),
@@ -178,7 +208,8 @@ module.exports = {
                   allScripts.push(importPath);
                 }
               } else {
-                // We currently don't copy unsupported file formats. We might or migth not want to change this in future
+                // We just copy generic files straight over.
+                fs.writeFileSync(outPath, fs.readFileSync(inPath));
               }
               break;
           }
