@@ -10,23 +10,44 @@ const {
   getSomeRandomChars,
   scanDir,
   replaceAll,
+  exists,
 } = require("./src/utils/utils");
 const yaml = require("js-yaml");
 const {
   createInitialProject,
   getAwsHostingDetails,
+  CLOUD_BUILD_DIR,
 } = require("./src/aws-serverless-hosting.js");
 const qrcode = require("qrcode-terminal");
 
 //const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
 const LIVE_DEBUG_DIR = `./.miwi/debug`;
 const CLIENT_BUILD_DIR = `./.miwi/client-build`;
-const CLOUD_BUILD_DIR = `./.miwi/cloud-build`;
 
 // Version & Program description
 program
   .version(CLI_VERSION, "-v", "Output the version number")
   .description("Creates, updates, and deploys Miwi projects");
+
+program
+  .command("temp")
+  .description("Temp")
+  .action(async function () {
+    const outDir = path.resolve(CLOUD_BUILD_DIR);
+    console.log(outDir);
+    const getBaseNameFromCloudDir = (absoluteOutDir, relativeDir) => {
+      if (path.dirname(relativeDir) != `.`) {
+        return getBaseNameFromCloudDir(
+          path.join(absoluteOutDir, `../`),
+          path.join(relativeDir, `../`),
+        );
+      } else {
+        return path.basename(path.join(absoluteOutDir, `../`));
+      }
+    };
+    const projectBaseName = getBaseNameFromCloudDir(outDir, CLOUD_BUILD_DIR);
+    console.log(projectBaseName);
+  });
 
 // Create a new project
 program
@@ -108,6 +129,11 @@ program
   .command("build")
   .description("Compile the current project into cloud config and a website")
   .action(async function () {
+    const awsHostingDetailsPath = getAwsHostingDetails(CLOUD_BUILD_DIR);
+    if (!fs.existsSync(awsHostingDetailsPath)) {
+      await createInitialProject(CLOUD_BUILD_DIR);
+    }
+
     build({
       inDir: `./`,
       outDir: CLIENT_BUILD_DIR,
@@ -121,20 +147,17 @@ program
   .description("Deploy the current project as a website")
   .action(async function () {
     const awsHostingDetailsPath = getAwsHostingDetails(CLOUD_BUILD_DIR);
-    if (!fs.existsSync(awsHostingDetailsPath)) {
-      await createInitialProject(CLOUD_BUILD_DIR);
-
-      // Deploy the cloud
-      await runCmd({
-        command: `serverless deploy`,
-        path: CLOUD_BUILD_DIR,
-      });
-    }
 
     // Build the client
     await runCmd({
       command: `miwi build`,
       path: `./`,
+    });
+
+    // Deploy the cloud
+    await runCmd({
+      command: `serverless deploy`,
+      path: CLOUD_BUILD_DIR,
     });
 
     // Deploy the client

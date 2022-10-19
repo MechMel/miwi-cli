@@ -5,17 +5,33 @@ const { rmdirContents } = require("./utils/utils");
 const yaml = require("js-yaml");
 
 const hostingDetailsFileName = `aws-hosting-details.json`;
+const CLOUD_BUILD_DIR = `./.miwi/cloud-build`;
 
 module.exports = {
   getAwsHostingDetails: (cloudDir) => `${cloudDir}/${hostingDetailsFileName}`,
+  CLOUD_BUILD_DIR: CLOUD_BUILD_DIR,
   createInitialProject: async (outDir) => {
     // Build the default cloud project
     if (fs.existsSync(outDir)) {
       rmdirContents(outDir);
       fs.rmdirSync(outDir);
     }
+    const getBaseNameFromCloudDir = (absoluteOutDir, relativeDir) => {
+      if (path.dirname(relativeDir) != `.`) {
+        return getBaseNameFromCloudDir(
+          path.join(absoluteOutDir, `../`),
+          path.join(relativeDir, `../`),
+        );
+      } else {
+        return path.basename(path.join(absoluteOutDir, `../`));
+      }
+    };
+    const projectBaseName = getBaseNameFromCloudDir(
+      path.resolve(outDir),
+      CLOUD_BUILD_DIR,
+    );
     await runCmd({
-      command: `serverless create --template "aws-nodejs" --path "${outDir}"`,
+      command: `serverless create --template "aws-nodejs" --path "${outDir}" --name "${projectBaseName}"`,
       path: `./`,
     });
     const serverlessConfigPath = `${outDir}/serverless.yml`;
