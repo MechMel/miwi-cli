@@ -1,3 +1,5 @@
+/* This script will always be imported last. */
+
 const routes: RouteNode = {
   title: `Home Page`,
   widget: homePage,

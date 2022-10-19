@@ -1,1 +1,2 @@
-// Put utility functions and vars in here.
+/* This script will always be imported after all miwi scripts,
+ * but before any other project scripts. */
