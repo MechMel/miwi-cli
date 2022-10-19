@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { rmdirContents, replaceAll, scanDir } = require("./utils/utils");
+const { rmdirContents, replaceAll, scanDir, exists } = require("./utils/utils");
 
 module.exports = {
   build: ({ inDir, outDir, shouldWatch = false }) => {
@@ -32,8 +32,31 @@ module.exports = {
     updateHtml();
     function updateHtml() {
       // Set up index.html
-      let scriptsText = ``;
-      // Miwi files must be added first in the correct order
+      let importScriptsText = ``;
+      const importScript = (scriptName) =>
+        (importScriptsText += exists(scriptName)
+          ? `<script src="/${scriptName}"></script>`
+          : ``);
+
+      /* Because I don't want to deal with import order right now,
+       * I'll put some files in a specific order, and alphabetize
+       * everything else. */
+      const alphabetizedScripts = [...allScripts];
+      const removeFromAlphScripts = (scriptName) => {
+        if (alphabetizedScripts.includes(scriptName)) {
+          alphabetizedScripts.splice(
+            alphabetizedScripts.indexOf(scriptName),
+            1,
+          );
+          return scriptName;
+        } else {
+          return undefined;
+        }
+      };
+
+      /* Eventually we should dynamically compute impor order, but
+       * right now we just manually import all Miwi files in the
+       * correct order. Followed by a few dev-definable files. */
       const miwiFiles = [
         `miwi/utils.js`,
         `miwi/var.js`,
@@ -45,20 +68,32 @@ module.exports = {
         `miwi/widget.js`,
         `miwi/md.js`,
       ];
-      for (const file of miwiFiles) {
-        scriptsText += `<script src="/${file}"></script>`;
-      }
-      for (const file of allScripts.sort()) {
-        if (!miwiFiles.includes(file)) {
-          scriptsText += `<script src="/${file}"></script>`;
-        }
+      miwiFiles.forEach(removeFromAlphScripts);
+      miwiFiles.forEach(importScript);
+
+      // Devs can create these files, and we will manually improt them first
+      importScript(removeFromAlphScripts(`utils.js`));
+      importScript(removeFromAlphScripts(`custom-widgets.js`));
+
+      // The routes file needs to get imported at the end
+      const routesFileName = `routes.js`;
+      let shouldImportRoutesFile = exists(
+        removeFromAlphScripts(routesFileName),
+      );
+
+      // We alphabtize any scripts that aren't manually imported above.
+      alphabetizedScripts.forEach(importScript);
+
+      // The routes file needs to get imported at the end
+      if (shouldImportRoutesFile) {
+        importScriptsText += `<script src="/${routesFileName}"></script>`;
       }
       fs.writeFileSync(
         path.resolve(outDir, `index.html`),
         fs
           .readFileSync(`${__dirname}/templates/index.html`)
           .toString()
-          .replace("${scripts}", scriptsText),
+          .replace("${scripts}", importScriptsText),
       );
 
       /*const puppeteer = require("puppeteer");

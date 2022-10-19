@@ -68,6 +68,8 @@ module.exports = {
     }
   },
 
+  exists: (x) => x !== undefined && x !== null,
+
   replaceAll: (inStr, pattern, replacement) => {
     let outStr = inStr;
     while (outStr !== outStr.replace(pattern, replacement)) {
