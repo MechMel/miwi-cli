@@ -64,6 +64,7 @@ module.exports = {
         `miwi/bool.js`,
         `miwi/num.js`,
         `miwi/str.js`,
+        `miwi/enum.js`,
         `miwi/mdIcons.js`,
         `miwi/widget.js`,
         `miwi/md.js`,
