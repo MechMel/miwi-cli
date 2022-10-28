@@ -89,12 +89,17 @@ module.exports = {
       if (shouldImportRoutesFile) {
         importScriptsText += `<script src="/${routesFileName}"></script>`;
       }
+
+      const miwiJson = JSON.parse(
+        fs.readFileSync(path.resolve(inDir, `./miwi.json`)).toString(),
+      );
       fs.writeFileSync(
         path.resolve(outDir, `index.html`),
         fs
           .readFileSync(`${__dirname}/templates/index.html`)
           .toString()
-          .replace("${scripts}", importScriptsText),
+          .replace("${scripts}", importScriptsText)
+          .replace(`<title></title>`, `<title>${miwiJson.title}</title>`),
       );
 
       /*const puppeteer = require("puppeteer");
