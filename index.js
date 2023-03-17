@@ -244,29 +244,29 @@ program
       path: `./`,
     });
 
-    // Upload the client build to Firebase
-    await (async () => {
-      // Initialize Firebase
-      const firebase = require('firebase/app');
-      const { getStorage, ref, uploadBytes  } = require('firebase/storage');
-      const firebaseConfig = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/src/tke-org/firebase-config.json`)));
-      firebase.initializeApp(firebaseConfig);
-      const storage = getStorage();
+    // Zip the client build
+    const patchZipName = `${newVersionNum}.zip`;
+    const patchZipPath = `./${patchZipName}`;
+    await zl.archiveFolder(`./dist`, patchZipPath);
 
-      // Zip the client build
-      const patchZipName = `${newVersionNum}.zip`;
-      const patchZipPath = `./${patchZipName}`;
-      await zl.archiveFolder(`./dist`, patchZipPath);
+    // // Upload the client build to Firebase
+    // await (async () => {
+    //   // Initialize Firebase
+    //   const firebase = require('firebase/app');
+    //   const { getStorage, ref, uploadBytes  } = require('firebase/storage');
+    //   const firebaseConfig = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/src/tke-org/firebase-config.json`)));
+    //   firebase.initializeApp(firebaseConfig);
+    //   const storage = getStorage();
 
-      // Upload the zipped file to Firebase Cloud Storage
-      const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
-      const storageRef = ref(storage, `${bundleId}/${patchZipName}`);
-      console.log(`Uploading patch for OTA...`);
-      uploadBytes(storageRef, fs.readFileSync(patchZipPath));
+    //   // Upload the zipped file to Firebase Cloud Storage
+    //   const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
+    //   const storageRef = ref(storage, `${bundleId}/${patchZipName}`);
+    //   console.log(`Uploading patch for OTA...`);
+    //   await uploadBytes(storageRef, fs.readFileSync(patchZipPath));
 
-      // Clean up the zip file
-      fs.unlinkSync(patchZipPath);
-    })();
+    //   // Clean up the zip file
+    //   fs.unlinkSync(patchZipPath);
+    // })();
   });
 
 
