@@ -19,6 +19,8 @@ const {
   CLOUD_BUILD_DIR,
 } = require("./src/aws-serverless-hosting.js");
 const qrcode = require("qrcode-terminal");
+const semver = require('semver');
+const zl = require('zip-lib');
 
 //const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
 const LIVE_DEBUG_DIR = `./.miwi/debug`;
@@ -47,6 +49,69 @@ program
     };
     const projectBaseName = getBaseNameFromCloudDir(outDir, CLOUD_BUILD_DIR);
     console.log(projectBaseName);
+  });
+
+// Create a new project
+program
+  .command("new <human-project-name>")
+  .description("Create a new miwi project")
+  .action(async function (humanProjectName) {
+    // Set up the projet's root dir
+    const BASE_PROJECT_NAME = humanProjectName.toLowerCase().replace(/ /g, "-");
+    console.log(`Creating ${BASE_PROJECT_NAME}...`);
+    const PROJECT_DIRECTORY_NAME = `${BASE_PROJECT_NAME}-${getSomeRandomChars()}`;
+    const PROJECT_ROOT_PATH = `./${PROJECT_DIRECTORY_NAME}/`;
+    fs.mkdirSync(PROJECT_ROOT_PATH);
+
+    // Copy up the default files
+    copyDefaultProject();
+    function copyDefaultProject(
+      inDir = path.resolve(`${__dirname}/src/templates/default-project`),
+      outDir = path.resolve(PROJECT_ROOT_PATH),
+    ) {
+      const allFiles = scanDir(inDir);
+      for (const file of allFiles) {
+        if (file.isDir) {
+          fs.mkdirSync(path.resolve(outDir, file.basename));
+          copyDefaultProject(
+            path.resolve(inDir, file.basename),
+            path.resolve(outDir, file.basename),
+          );
+        } else {
+          let inFileContents = fs.readFileSync(
+            path.resolve(inDir, file.basename),
+          );
+          if (
+            [`.json`, `.js`, `.ts`, `.html`].includes(
+              path.extname(file.basename),
+            )
+          ) {
+            inFileContents = replaceAll(
+              inFileContents.toString(),
+              `\${liveDebugRootPath}`,
+              LIVE_DEBUG_DIR,
+            );
+          }
+          fs.writeFileSync(path.resolve(outDir, file.basename), inFileContents);
+        }
+      }
+    }
+
+    // Clone Miwi
+    await runCmd({
+      command: `git clone https://github.com/MechMel/Miwi`,
+      path: PROJECT_ROOT_PATH,
+    });
+    fs.renameSync(
+      path.resolve(PROJECT_ROOT_PATH, `Miwi`),
+      path.resolve(PROJECT_ROOT_PATH, `miwi`),
+    );
+
+    // Open vscode
+    await runCmd({
+      command: `code .`,
+      path: PROJECT_ROOT_PATH,
+    });
   });
 
 // Create a new project
@@ -140,6 +205,70 @@ program
       shouldWatch: false,
     });
   });
+
+program
+  .command(`pub`)
+  .description(`Publish the current project to test flight.`)
+  .option(`-m, --minor`, `Publish as a minor update. (default is patch)`)
+  .option(`-M, --major`, `Publish as a major update. (default is patch)`)
+  .action(async function (options) {
+    // Parse request
+    const releaseLevel = options.major ? `major` : options.minor ? `minor` : `patch`;
+    
+    // Update version number
+    const { newVersionNum } = ((() => {
+      // Get version number from package.json
+      const packageJson = JSON.parse(fs.readFileSync(`./package.json`));
+      const prevVersionNum = packageJson.version;
+      const newVersionNum = semver.inc(prevVersionNum, releaseLevel);
+
+      // Update package.json
+      packageJson.version = newVersionNum;
+      fs.writeFileSync(`./package.json`, JSON.stringify(packageJson, null, 2));
+
+      // Update codemagic.yaml
+      const codemagicYaml = fs.readFileSync(`./codemagic.yaml`).toString();
+      const newCodemagicYaml = codemagicYaml.replaceAll(
+        new RegExp( `\\s[0-9]+\\.[0-9]+\\.[0-9]+\\s` , `g`),
+        ` ${newVersionNum} `,
+      );
+      fs.writeFileSync(`./codemagic.yaml`, newCodemagicYaml);
+
+      return { newVersionNum };
+    })());
+    console.log(`New version number: ${newVersionNum}`);
+
+    // Build the client
+    await runCmd({
+      command: `npm run build`,
+      path: `./`,
+    });
+
+    // Upload the client build to Firebase
+    await (async () => {
+      // Initialize Firebase
+      const firebase = require('firebase/app');
+      const { getStorage, ref, uploadBytes  } = require('firebase/storage');
+      const firebaseConfig = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/src/tke-org/firebase-config.json`)));
+      firebase.initializeApp(firebaseConfig);
+      const storage = getStorage();
+
+      // Zip the client build
+      const patchZipName = `${newVersionNum}.zip`;
+      const patchZipPath = `./${patchZipName}`;
+      await zl.archiveFolder(`./dist`, patchZipPath);
+
+      // Upload the zipped file to Firebase Cloud Storage
+      const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
+      const storageRef = ref(storage, `${bundleId}/${patchZipName}`);
+      console.log(`Uploading patch for OTA...`);
+      uploadBytes(storageRef, fs.readFileSync(patchZipPath));
+
+      // Clean up the zip file
+      fs.unlinkSync(patchZipPath);
+    })();
+  });
+
 
 // Deploys the current project
 program

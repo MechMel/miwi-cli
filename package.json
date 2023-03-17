@@ -4,19 +4,22 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "pub": "npm i -g ."
   },
   "author": "Turn Key Ecosystems LLC",
   "license": "ISC",
   "dependencies": {
     "commander": "^6.2.1",
     "esbuild": "^0.15.5",
+    "firebase": "^9.18.0",
     "js-yaml": "^4.1.0",
     "live-server": "^1.2.2",
     "node-watch": "^0.7.3",
     "puppeteer": "^19.0.0",
     "qrcode-terminal": "^0.12.0",
-    "watcher": "^1.2.0"
+    "semver": "^7.3.8",
+    "watcher": "^1.2.0",
+    "zip-lib": "^0.7.3"
   },
   "bin": {
     "miwi": "index.js"
