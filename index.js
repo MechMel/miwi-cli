@@ -177,6 +177,25 @@ program
     });
   });
 
+  // Sync the current project to GitHub
+program
+  .command(`sync <message>`)
+  .description(`Sync the current project to GitHub.`)
+  .action(async function (message) {
+    await runCmd({
+      command: `git add .`,
+      path: `./`,
+    });
+    await runCmd({
+      command: `git commit -m "${message}"`,
+      path: `./`,
+    });
+    await runCmd({
+      command: `git push`,
+      path: `./`,
+    });
+  });
+
 // Debug the current project
 program
   .command("debug")
