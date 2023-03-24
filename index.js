@@ -248,7 +248,7 @@ program
       // Update codemagic.yaml
       const codemagicYaml = fs.readFileSync(`./codemagic.yaml`).toString();
       const newCodemagicYaml = codemagicYaml.replaceAll(
-        new RegExp( `\\s[0-9]+\\.[0-9]+\\.[0-9]+\\s` , `g`),
+        new RegExp(`\\s[0-9]+\\.[0-9]+\\.[0-9]+\\s` , `g`),
         ` ${newVersionNum} `,
       );
       fs.writeFileSync(`./codemagic.yaml`, newCodemagicYaml);
@@ -268,24 +268,28 @@ program
     const patchZipPath = `./${patchZipName}`;
     await zl.archiveFolder(`./dist`, patchZipPath);
 
-    // // Upload the client build to Firebase
-    // await (async () => {
-    //   // Initialize Firebase
-    //   const firebase = require('firebase/app');
-    //   const { getStorage, ref, uploadBytes  } = require('firebase/storage');
-    //   const firebaseConfig = JSON.parse(fs.readFileSync(path.resolve(`${__dirname}/src/tke-org/firebase-config.json`)));
-    //   firebase.initializeApp(firebaseConfig);
-    //   const storage = getStorage();
+    // Upload the client build to Firebase
+    await (async () => {
+      // Initialize Firebase
+      const { initializeApp, cert } = require('firebase-admin/app');
+      const { getStorage } = require('firebase-admin/storage');
+      const serviceAccount = require(`${__dirname}/src/org/tke-ota-firebase-adminsdk-v6bgz-73cb51d320.json`);
+      const admin = initializeApp({
+        credential: cert(serviceAccount)
+      });
+      const storage = getStorage(admin);
 
-    //   // Upload the zipped file to Firebase Cloud Storage
-    //   const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
-    //   const storageRef = ref(storage, `${bundleId}/${patchZipName}`);
-    //   console.log(`Uploading patch for OTA...`);
-    //   await uploadBytes(storageRef, fs.readFileSync(patchZipPath));
+      // Upload the zipped file to Firebase Cloud Storage
+      const bucket = storage.bucket("gs://tke-ota.appspot.com");
+      const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
+      console.log(`Uploading patch for OTA...`);
+      const uploadResult = await bucket.upload(patchZipPath, {
+        destination: `${bundleId}/${patchZipName}`,
+      });
 
-    //   // Clean up the zip file
-    //   fs.unlinkSync(patchZipPath);
-    // })();
+      // Clean up the zip file
+      fs.unlinkSync(patchZipPath);
+    })();
   });
 
 
