@@ -270,26 +270,31 @@ program
 
     // Upload the client build to Firebase
     await (async () => {
-      // Initialize Firebase
-      const { initializeApp, cert } = require('firebase-admin/app');
-      const { getStorage } = require('firebase-admin/storage');
-      const serviceAccount = require(`${__dirname}/src/org/tke-ota-firebase-adminsdk-v6bgz-73cb51d320.json`);
-      const admin = initializeApp({
-        credential: cert(serviceAccount)
-      });
-      const storage = getStorage(admin);
-
-      // Upload the zipped file to Firebase Cloud Storage
-      const bucket = storage.bucket("gs://tke-ota.appspot.com");
-      const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
-      console.log(`Uploading patch for OTA...`);
-      const uploadResult = await bucket.upload(patchZipPath, {
-        destination: `${bundleId}/${patchZipName}`,
-      });
-
-      // Clean up the zip file
-      fs.unlinkSync(patchZipPath);
+      try {
+        // Initialize Firebase
+        const { initializeApp, cert } = require('firebase-admin/app');
+        const { getStorage } = require('firebase-admin/storage');
+        const serviceAccount = require(
+          `${require('os').homedir()}/.miwi/firebase-admin-credentials.json`);
+        const admin = initializeApp({
+          credential: cert(serviceAccount)
+        });
+        const storage = getStorage(admin);
+  
+        // Upload the zipped file to Firebase Cloud Storage
+        const bucket = storage.bucket("gs://tke-ota.appspot.com");
+        const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
+        console.log(`Uploading patch for OTA...`);
+        const uploadResult = await bucket.upload(patchZipPath, {
+          destination: `${bundleId}/${patchZipName}`,
+        });
+      } catch (e) {
+        console.error(e);
+      }
     })();
+
+    // Clean up the zip file
+    fs.unlinkSync(patchZipPath);
   });
 
 
