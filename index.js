@@ -288,6 +288,8 @@ program
         const uploadResult = await bucket.upload(patchZipPath, {
           destination: `${bundleId}/${patchZipName}`,
         });
+
+        // TODO: Eventually check how many uploads there are and delete the oldest few automatically.
       } catch (e) {
         console.error(e);
       }
