@@ -297,6 +297,13 @@ program
 
     // Clean up the zip file
     fs.unlinkSync(patchZipPath);
+
+    /* Syncchanges to GitHub. For minor and major updates this is nessecary
+     * for CodeMagic, but it seems good to do for all updates. */
+    await runCmd({
+      command: `miwi sync "Publishing ${newVersionNum}"`,
+      path: `./`,
+    });
   });
 
 
