@@ -177,7 +177,7 @@ program
     });
   });
 
-  // Sync the current project to GitHub
+// Sync the current project to GitHub
 program
   .command(`sync <message>`)
   .description(`Sync the current project to GitHub.`)
