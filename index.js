@@ -19,8 +19,8 @@ const {
   CLOUD_BUILD_DIR,
 } = require("./src/aws-serverless-hosting.js");
 const qrcode = require("qrcode-terminal");
-const semver = require('semver');
-const zl = require('zip-lib');
+const semver = require("semver");
+const zl = require("zip-lib");
 
 //const LIVE_DEBUG_DIR = replaceAll(`${__dirname}/live-debug`, `\\`, `/`);
 const LIVE_DEBUG_DIR = `./.miwi/debug`;
@@ -232,10 +232,14 @@ program
   .option(`-M, --major`, `Publish as a major update. (default is patch)`)
   .action(async function (options) {
     // Parse request
-    const releaseLevel = options.major ? `major` : options.minor ? `minor` : `patch`;
-    
+    const releaseLevel = options.major
+      ? `major`
+      : options.minor
+      ? `minor`
+      : `patch`;
+
     // Update version number
-    const { newVersionNum } = ((() => {
+    const { newVersionNum } = (() => {
       // Get version number from package.json
       const packageJson = JSON.parse(fs.readFileSync(`./package.json`));
       const prevVersionNum = packageJson.version;
@@ -248,18 +252,19 @@ program
       // Update codemagic.yaml
       const codemagicYaml = fs.readFileSync(`./codemagic.yaml`).toString();
       const newCodemagicYaml = codemagicYaml.replaceAll(
-        new RegExp(`\\s[0-9]+\\.[0-9]+\\.[0-9]+\\s` , `g`),
+        new RegExp(`\\s[0-9]+\\.[0-9]+\\.[0-9]+\\s`, `g`),
         ` ${newVersionNum} `,
       );
       fs.writeFileSync(`./codemagic.yaml`, newCodemagicYaml);
 
       return { newVersionNum };
-    })());
+    })();
     console.log(`New version number: ${newVersionNum}`);
 
     // Build the client
     await runCmd({
-      command: `npm run build`,
+      command:
+        releaseLevel === `patch` ? `npm run build:patch` : `npm run build:full`,
       path: `./`,
     });
 
@@ -272,18 +277,19 @@ program
     await (async () => {
       try {
         // Initialize Firebase
-        const { initializeApp, cert } = require('firebase-admin/app');
-        const { getStorage } = require('firebase-admin/storage');
-        const serviceAccount = require(
-          `${require('os').homedir()}/.miwi/firebase-admin-credentials.json`);
+        const { initializeApp, cert } = require("firebase-admin/app");
+        const { getStorage } = require("firebase-admin/storage");
+        const serviceAccount = require(`${require("os").homedir()}/.miwi/firebase-admin-credentials.json`);
         const admin = initializeApp({
-          credential: cert(serviceAccount)
+          credential: cert(serviceAccount),
         });
         const storage = getStorage(admin);
-  
+
         // Upload the zipped file to Firebase Cloud Storage
         const bucket = storage.bucket("gs://tke-ota.appspot.com");
-        const bundleId = JSON.parse(fs.readFileSync(`./capacitor.config.json`)).appId;
+        const bundleId = JSON.parse(
+          fs.readFileSync(`./capacitor.config.json`),
+        ).appId;
         console.log(`Uploading patch for OTA...`);
         const uploadResult = await bucket.upload(patchZipPath, {
           destination: `${bundleId}/${patchZipName}`,
@@ -305,7 +311,6 @@ program
       path: `./`,
     });
   });
-
 
 // Deploys the current project
 program
