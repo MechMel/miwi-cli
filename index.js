@@ -11,7 +11,7 @@ const {
   replaceAll,
   exists,
 } = require("./src/utils/utils");
-const { kebabCase } = require("change-case");
+// const { kebabCase } = require("change-case");
 const semver = require("semver");
 const zl = require("zip-lib");
 
@@ -27,48 +27,88 @@ program
   .action(async function (humanProjectName) {
     humanProjectName = humanProjectName.trim();
     // Set up the projet's root dir
-    const KEBAB_CASE = kebabCase(humanProjectName);
+    const SNAKE_CASE = humanProjectName.toLowerCase().replaceAll(" ", "_");
+    const KEBAB_CASE = humanProjectName.toLowerCase().replaceAll(" ", "-");
+    const SQUASH_CASE = KEBAB_CASE.replaceAll("-", "");
     console.log(`Creating ${KEBAB_CASE}...`);
     const PROJECT_DIRECTORY_NAME = `${KEBAB_CASE}-${getSomeRandomChars()}`;
     const PROJECT_ROOT_PATH = `./${PROJECT_DIRECTORY_NAME}/`;
-
-    // Vue project creation
-    await runCmd({
-      command: `npm init vue@latest`,
-    });
-
-    // Running installation commands
-    await runCmd({
-      command: `npm install && npm run build`,
-      path: PROJECT_ROOT_PATH,
-    });
-
-    // Installing Material Design Icon support
-    await runCmd({
-      command: `npm install mdi-vue`,
-      path: PROJECT_ROOT_PATH,
-    });
-    await runCmd({
-      command: `npm install @mdi/js`,
-      path: PROJECT_ROOT_PATH,
-    });
-
-    // Fix meta tag in index.html
-    let indexPath = path.join(PROJECT_ROOT_PATH, "public", "index.html");
-    let indexFile = fs.readFileSync(indexPath, "utf8");
-    indexFile = indexFile.replace(
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-      '<meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />',
-    );
-    fs.writeFileSync(indexPath, indexFile);
+    fs.mkdirSync(PROJECT_ROOT_PATH, { recursive: true });
 
     // Copy up the default files
     await runCmd({
-      command: `git clone https://github.com/MechMel/Miwi-Vue-App-Template.git ${PROJECT_ROOT_PATH}`,
+      command: `git clone https://github.com/TurnKey-Ecosystems/vue-cap-template.git ${PROJECT_ROOT_PATH}`,
+      path: `./`,
+    });
+
+    // Create the miwi.json file
+    fs.writeFileSync(
+      `${PROJECT_ROOT_PATH}/miwi.json`,
+      JSON.stringify(
+        {
+          name: humanProjectName,
+          haveCreatedGitHubRepository: false,
+          githubOrg: "TurnKey-Ecosystems",
+        },
+        null,
+        2,
+      ),
+    );
+
+    // Apply the project name
+    function replaceAllInFile(filePath, find, replace) {
+      fs.writeFileSync(
+        filePath,
+        replaceAll(fs.readFileSync(filePath).toString(), find, replace),
+      );
+    }
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/index.html`,
+      `MIWI_INSERT_APP_NAME`,
+      humanProjectName,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/package.json`,
+      `MIWI_INSERT_APP_NAME`,
+      KEBAB_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/README.md`,
+      `MIWI_INSERT_APP_NAME`,
+      humanProjectName,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/capacitor.config.json`,
+      `MIWI_INSERT_APP_NAME`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/codemagic.yaml`,
+      `MIWI_INSERT_APP_NAME`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/.firebaserc`,
+      `MIWI_INSERT_APP_NAME`,
+      KEBAB_CASE,
+    );
+    // replaceAllInFile(
+    //   `${PROJECT_ROOT_PATH}/src/ApppData.ts`,
+    //   `/* INSERT_FIREBASE_OPTIONS_HERE */`,
+    //   firebaseConfig,
+    // );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/src/views/Home.page.vue`,
+      `MIWI_INSERT_APP_NAME`,
+      humanProjectName,
+    );
+
+    // Reset the .git folder
+    fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
+    await runCmd({
+      command: `git init -b main && git add . && git commit -m "Initial Commit"`,
       path: PROJECT_ROOT_PATH,
     });
-    // Remove the .git folder
-    fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
 
     // Open vscode
     await runCmd({
@@ -81,7 +121,42 @@ program
 program
   .command(`sync <message>`)
   .description(`Sync the current project to GitHub.`)
-  .action(async function (message) {
+  .option(`-y, --yes`, `Respond yes to all prompts.`)
+  .action(async function (message, options) {
+    const miwiJsonExists = fs.existsSync(`./miwi.json`);
+    if (miwiJsonExists) {
+      const miwiJson = JSON.parse(fs.readFileSync(`./miwi.json`));
+      if (!miwiJson.haveCreatedGitHubRepository) {
+        if (!options.yes) {
+          console.log(
+            `No GitHub repository exists. Would you like to create one? y/n:`,
+          );
+          const answer = await new Promise((resolve) => {
+            process.stdin.once("data", (data) => {
+              resolve(data.toString().trim());
+            });
+          });
+          if (!answer.toLowerCase() === "y") {
+            console.log(`Aborting...`);
+            process.exit(0);
+          }
+        }
+        await runCmd({
+          command: `gh repo create "${miwiJson.githubOrg}/${replaceAll(
+            miwiJson.name.toLowerCase(),
+            ` `,
+            `_`,
+          )}" --private --source "./"`,
+          path: `./`,
+        });
+        miwiJson.haveCreatedGitHubRepository = true;
+        fs.writeFileSync(`./miwi.json`, JSON.stringify(miwiJson, null, 2));
+        await runCmd({
+          command: `git push --set-upstream origin main`,
+          path: `./`,
+        });
+      }
+    }
     await runCmd({
       command: `git add .`,
       path: `./`,
