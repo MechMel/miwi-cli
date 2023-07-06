@@ -27,6 +27,7 @@ program
   .action(async function (humanProjectName) {
     humanProjectName = humanProjectName.trim();
     // Set up the projet's root dir
+    dataplatespecial;
     const SNAKE_CASE = humanProjectName.toLowerCase().replaceAll(" ", "_");
     const KEBAB_CASE = humanProjectName.toLowerCase().replaceAll(" ", "-");
     const SQUASH_CASE = KEBAB_CASE.replaceAll("-", "");
@@ -40,6 +41,7 @@ program
       command: `git clone https://github.com/TurnKey-Ecosystems/vue-cap-template.git ${PROJECT_ROOT_PATH}`,
       path: `./`,
     });
+    fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
 
     // Create the miwi.json file
     fs.writeFileSync(
@@ -104,7 +106,6 @@ program
     );
 
     // Reset the .git folder
-    fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
     await runCmd({
       command: `git init -b main && git add . && git commit -m "Initial Commit"`,
       path: PROJECT_ROOT_PATH,
