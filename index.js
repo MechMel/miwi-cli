@@ -78,8 +78,34 @@ program
       `MIWI_INSERT_APP_NAME`,
       humanProjectName,
     );
+
     replaceAllInFile(
       `${PROJECT_ROOT_PATH}/capacitor.config.json`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/android/app/build.gradle`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/android/app/src/main/AndroidManifest.xml`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/android/app/src/main/java/us/tke/ninety_percent/MainActivity.java`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/android/app/src/main/res/values/strings.xml`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
+      SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/ios/App/App.xcodeproj/project.pbxproj`,
       `MIWI_INSERT_APP_NAME_SQUASH`,
       SQUASH_CASE,
     );
