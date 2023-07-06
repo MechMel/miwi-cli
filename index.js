@@ -80,8 +80,13 @@ program
     );
     replaceAllInFile(
       `${PROJECT_ROOT_PATH}/capacitor.config.json`,
-      `MIWI_INSERT_APP_NAME`,
+      `MIWI_INSERT_APP_NAME_SQUASH`,
       SQUASH_CASE,
+    );
+    replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/capacitor.config.json`,
+      `MIWI_INSERT_APP_NAME_HUMAN`,
+      humanProjectName,
     );
     replaceAllInFile(
       `${PROJECT_ROOT_PATH}/codemagic.yaml`,
