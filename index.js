@@ -27,7 +27,6 @@ program
   .action(async function (humanProjectName) {
     humanProjectName = humanProjectName.trim();
     // Set up the projet's root dir
-    dataplatespecial;
     const SNAKE_CASE = humanProjectName.toLowerCase().replaceAll(" ", "_");
     const KEBAB_CASE = humanProjectName.toLowerCase().replaceAll(" ", "-");
     const SQUASH_CASE = KEBAB_CASE.replaceAll("-", "");
