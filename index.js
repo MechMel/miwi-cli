@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { program } = require("commander");
 const runCmd = require("./src/utils/run-cmd");
+const axios = require("axios");
 const {
   getSomeRandomChars,
   scanDir,
@@ -210,6 +211,67 @@ program
       command: `git push`,
       path: `./`,
     });
+  });
+
+// Embed a monode package
+const EMBEDED_MONODE_PATH = `./src/monode`;
+program
+  .command(`embed <package-name>`)
+  .description(`Embeds a given Monode node package locally.`)
+  .action(async function (packageName, options) {
+    // Get the pakcage repository
+    const fullPackageName = `@monode/${packageName}`;
+    const packageRepository = (
+      await axios.get(`https://registry.npmjs.org/${fullPackageName}/latest`)
+    )?.data?.repository;
+    if (!packageRepository || !packageRepository.url) {
+      console.error(`Could not find a repository for "${fullPackageName}".`);
+      process.exit(1);
+    }
+
+    // Ensure that the monode folder exists
+    const EMBEDED_MONODE_PATH = `./src/monode`;
+    if (!fs.existsSync(EMBEDED_MONODE_PATH)) {
+      fs.mkdirSync(EMBEDED_MONODE_PATH, { recursive: true });
+    }
+
+    // Clone the package repository
+    const localPath = `${EMBEDED_MONODE_PATH}/${packageName}`;
+    await runCmd({
+      command: `git clone ${packageRepository.url} ${localPath}`,
+      path: `./`,
+    });
+
+    // Remap the package name
+    const packageIndexPath = `${localPath}/src/index.ts`;
+    const tsConfigPath = `./tsconfig.json`;
+    const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath));
+    tsConfig.compilerOptions.paths[fullPackageName] = [packageIndexPath];
+    fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
+  });
+
+// Embed a monode package
+program
+  .command(`unembed <package-name>`)
+  .description(`Unembeds the given Monode node package.`)
+  .action(async function (packageName, options) {
+    const fullPackageName = `@monode/${packageName}`;
+
+    // Check if the package exists
+    const localPath = `${EMBEDED_MONODE_PATH}/${packageName}`;
+    if (!fs.existsSync(localPath)) return;
+
+    // Clone the package repository
+    await runCmd({
+      command: `git clone ${packageRepository.url} ${localPath}`,
+      path: `./`,
+    });
+
+    // Delete the package remap
+    const tsConfigPath = `./tsconfig.json`;
+    const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath));
+    delete tsConfig.compilerOptions.paths[fullPackageName];
+    fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
   });
 
 // Debug the current project
