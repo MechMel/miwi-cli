@@ -214,63 +214,94 @@ program
   });
 
 // Embed a monode package
-const EMBEDED_MONODE_PATH = `./src/monode`;
+const EMBEDS_PATH = `./src/embedded`;
 program
   .command(`embed <package-name>`)
-  .description(`Embeds a given Monode node package locally.`)
+  .description(`Embeds a given node package locally.`)
   .action(async function (packageName, options) {
     // Get the pakcage repository
-    const fullPackageName = `@monode/${packageName}`;
-    const packageRepository = (
-      await axios.get(`https://registry.npmjs.org/${fullPackageName}/latest`)
-    )?.data?.repository;
-    if (!packageRepository || !packageRepository.url) {
-      console.error(`Could not find a repository for "${fullPackageName}".`);
+    let getConfig = (() => {
+      try {
+        const npmrc = fs.readFileSync(`./.npmrc`, `utf8`);
+        const authToken = npmrc.match(/.*:_authToken=(.*)/)[1];
+        return {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        };
+      } catch (e) {
+        return undefined;
+      }
+    })();
+    const repoUrl = await (async () => {
+      try {
+        console.log(
+          `https://registry.npmjs.org/${packageName
+            .split(`/`)
+            .map(encodeURIComponent)
+            .join(`/`)}/latest`,
+        );
+        const response = await axios.get(
+          `https://registry.npmjs.org/${packageName
+            .split(`/`)
+            .map(encodeURIComponent)
+            .join(`/`)}/latest`,
+          getConfig,
+        );
+        let url = response?.data?.repository?.url;
+        url = url.replace(
+          /^git\+ssh:\/\/git@github.com\//,
+          "https://github.com/",
+        );
+        url = url.replace(/^git\+/, "");
+        console.log(url);
+        return url;
+      } catch (e) {
+        return null;
+      }
+    })();
+    if (!repoUrl) {
+      console.log(`Could not find a repository for "${packageName}".`);
       process.exit(1);
     }
 
     // Ensure that the monode folder exists
-    const EMBEDED_MONODE_PATH = `./src/monode`;
+    const EMBEDED_MONODE_PATH = `${EMBEDS_PATH}/${packageName}`;
     if (!fs.existsSync(EMBEDED_MONODE_PATH)) {
       fs.mkdirSync(EMBEDED_MONODE_PATH, { recursive: true });
     }
 
     // Clone the package repository
-    const localPath = `${EMBEDED_MONODE_PATH}/${packageName}`;
+    const packageEmbedPath = `${EMBEDS_PATH}/${packageName}`;
     await runCmd({
-      command: `git clone ${packageRepository.url} ${localPath}`,
+      command: `git clone ${repoUrl} ${packageEmbedPath}`,
       path: `./`,
     });
 
     // Remap the package name
-    const packageIndexPath = `${localPath}/src/index.ts`;
+    const packageIndexPath = `${packageEmbedPath}/src/index.ts`;
     const tsConfigPath = `./tsconfig.json`;
     const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath));
-    tsConfig.compilerOptions.paths[fullPackageName] = [packageIndexPath];
+    tsConfig.compilerOptions.paths[packageName] = [packageIndexPath];
     fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
   });
 
 // Embed a monode package
 program
   .command(`unembed <package-name>`)
-  .description(`Unembeds the given Monode node package.`)
+  .description(`Unembeds the given node package.`)
   .action(async function (packageName, options) {
-    const fullPackageName = `@monode/${packageName}`;
-
     // Check if the package exists
-    const localPath = `${EMBEDED_MONODE_PATH}/${packageName}`;
+    const localPath = `${EMBEDS_PATH}/${packageName}`;
     if (!fs.existsSync(localPath)) return;
 
     // Clone the package repository
-    await runCmd({
-      command: `git clone ${packageRepository.url} ${localPath}`,
-      path: `./`,
-    });
+    fs.rmSync(localPath, { recursive: true });
 
     // Delete the package remap
     const tsConfigPath = `./tsconfig.json`;
     const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath));
-    delete tsConfig.compilerOptions.paths[fullPackageName];
+    delete tsConfig.compilerOptions.paths[packageName];
     fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
   });
 
