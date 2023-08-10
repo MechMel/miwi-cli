@@ -169,7 +169,7 @@ program
       path: __dirname,
     });
     await runCmd({
-      command: `node i -g .`,
+      command: `npm i -g .`,
       path: __dirname,
     });
   });
