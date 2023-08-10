@@ -161,6 +161,21 @@ program
 
 // Sync the current project to GitHub
 program
+  .command(`upgrade`)
+  .description(`Upgrades miwi cli to the latest version.`)
+  .action(async function (message, options) {
+    await runCmd({
+      command: `git pull`,
+      path: __dirname,
+    });
+    await runCmd({
+      command: `node i -g .`,
+      path: __dirname,
+    });
+  });
+
+// Sync the current project to GitHub
+program
   .command(`sync <message>`)
   .description(`Sync the current project to GitHub.`)
   .option(`-y, --yes`, `Respond yes to all prompts.`)
@@ -208,6 +223,10 @@ program
       path: `./`,
     });
     await runCmd({
+      command: `git pull`,
+      path: `./`,
+    });
+    await runCmd({
       command: `git push`,
       path: `./`,
     });
@@ -235,12 +254,6 @@ program
     })();
     const repoUrl = await (async () => {
       try {
-        console.log(
-          `https://registry.npmjs.org/${packageName
-            .split(`/`)
-            .map(encodeURIComponent)
-            .join(`/`)}/latest`,
-        );
         const response = await axios.get(
           `https://registry.npmjs.org/${packageName
             .split(`/`)
@@ -254,7 +267,6 @@ program
           "https://github.com/",
         );
         url = url.replace(/^git\+/, "");
-        console.log(url);
         return url;
       } catch (e) {
         return null;
