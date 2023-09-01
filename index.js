@@ -41,7 +41,7 @@ program
       command: `git clone https://github.com/TurnKey-Ecosystems/solidjs-cap-template.git ${PROJECT_ROOT_PATH}`,
       path: `./`,
     });
-    fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
+    fs.rmSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
 
     // Create the miwi.json file
     fs.writeFileSync(
