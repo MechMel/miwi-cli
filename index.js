@@ -86,6 +86,11 @@ program
       SQUASH_CASE,
     );
     replaceAllInFile(
+      `${PROJECT_ROOT_PATH}/capacitor.config.json`,
+      `MIWI_INSERT_APP_NAME_HUMAN`,
+      humanProjectName,
+    );
+    replaceAllInFile(
       `${PROJECT_ROOT_PATH}/android/app/build.gradle`,
       `MIWI_INSERT_APP_NAME_SQUASH`,
       SQUASH_CASE,
@@ -117,11 +122,6 @@ program
     );
     replaceAllInFile(
       `${PROJECT_ROOT_PATH}/ios/App/App/Info.plist`,
-      `MIWI_INSERT_APP_NAME_HUMAN`,
-      humanProjectName,
-    );
-    replaceAllInFile(
-      `${PROJECT_ROOT_PATH}/capacitor.config.json`,
       `MIWI_INSERT_APP_NAME_HUMAN`,
       humanProjectName,
     );
