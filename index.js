@@ -38,7 +38,7 @@ program
 
     // Copy up the default files
     await runCmd({
-      command: `git clone https://github.com/TurnKey-Ecosystems/vue-cap-template.git ${PROJECT_ROOT_PATH}`,
+      command: `git clone https://github.com/TurnKey-Ecosystems/solidjs-cap-template.git ${PROJECT_ROOT_PATH}`,
       path: `./`,
     });
     fs.rmdirSync(`${PROJECT_ROOT_PATH}/.git`, { recursive: true });
