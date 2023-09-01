@@ -141,7 +141,7 @@ program
     //   firebaseConfig,
     // );
     replaceAllInFile(
-      `${PROJECT_ROOT_PATH}/src/views/Home.page.vue`,
+      `${PROJECT_ROOT_PATH}/src/HomePage.tsx`,
       `MIWI_INSERT_APP_NAME`,
       humanProjectName,
     );
