@@ -5,4 +5,3 @@ Our automation tool.
 1. Clone this repo.
 2. Run `npm install` to install dependencies.
 3. Run `npm i -g .` to install the package globally.
-//3. Run `npm link` to link the package globally.
